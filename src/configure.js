@@ -36,7 +36,7 @@ async function configureCli(name, commandOptions, command) {
         type: 'list',
         name: 'ai',
         message: 'Select the AI provider:',
-        choices: [{ name: 'Crowdin AI Provider', value: 'crowdin' }, { name: 'OpenAI', value: 'openai' }]
+        choices: [{ name: 'OpenAI', value: 'openai' }, { name: 'Crowdin AI Provider', value: 'crowdin' }]
     }, {
         type: 'list',
         name: 'crowdin_ai_id',
@@ -111,7 +111,7 @@ async function configureCli(name, commandOptions, command) {
     }, {
         type: 'input',
         name: 'promptFile',
-        message: 'Enter the path to a file containing a custom prompt (use "-" to read from STDIN). Leave empty to use the default prompt:',
+        message: 'Enter the path to a file containing a custom prompt. "-" to read from STDIN (optional):',
     }, {
         type: 'input',
         name: 'localFiles',
@@ -125,7 +125,7 @@ async function configureCli(name, commandOptions, command) {
     }, {
         type: 'input',
         name: 'crowdinFiles',
-        message: 'Enter the path to the Crowdin files (glob pattern e.g. **/*.*). Leave empty if --croql will be used:',
+        message: 'Enter the path to the Crowdin files (glob pattern e.g. **/*.*).:',
         default: '',
     }, {
         type: 'list',
@@ -135,7 +135,7 @@ async function configureCli(name, commandOptions, command) {
     }, {
         type: 'input',
         name: 'croql',
-        message: 'Enter a CroQL query to select a specific subset of strings to extract context for. Leave empty if --crowdinFiles is used:',
+        message: 'CroQL query (optional):',
     }, {
         type: 'confirm',
         name: 'dryRun',

@@ -6,8 +6,9 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { encode } from 'gpt-tokenizer'
 import axios from 'axios';
+import Table from 'cli-table3';
 
-const AI_MODEL_CONTEXT_WINDOW = 128000;
+const AI_MODEL_CONTEXT_WINDOW = 128000; // the context window size of the recommended AI model
 
 const spinner = ora();
 
@@ -34,11 +35,19 @@ async function updateStrings(options, apiClient, project, strings) {
 
 // prints the strings that would be updated in a dry run
 function dryRunPrint(strings) {
+    const table = new Table({
+        head: ['Key', 'Text', 'AI Context'],
+    });
+
     const stringsWithAiContext = strings.filter((string) => string.aiContext);
 
     for (const string of stringsWithAiContext) {
-        console.log(`\n-------------------------\n\n${chalk.blue(string.identifier || '--no-key-provided--')}: "${chalk.green(string.text)}"\n\nUpdated context: \n\n${chalk.green(appendAiContext(string.context, string.aiContext))}\n`);
+        table.push(
+            [string.identifier, string.text, string.aiContext.join('\n')],
+        );
     }
+
+    console.log(table.toString());
 
     console.log(`\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`);
 }
@@ -329,7 +338,7 @@ async function harvest(name, commandOptions, command) {
             project = (await apiClient.projectsGroupsApi.getProject(options.project)).data;
         } catch (error) {
             spinner.fail();
-            spinner.fail(`Error: ${e.message}`);
+            spinner.fail(`Error: ${error.message}`);
             process.exit(1);
         }
 
