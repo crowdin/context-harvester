@@ -6,11 +6,16 @@ import harvest from './src/harvest.js';
 import reset from './src/reset.js';
 import upload from './src/upload.js';
 import chalk from 'chalk';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const program = new Command();
 
 program
-    .version('1.0.0')
+    .version(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version)
     .name('crowdin-context-harvester')
     .description(`CLI tool for adding contextual information for Crowdin strings using AI. 
 
