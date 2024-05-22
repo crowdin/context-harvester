@@ -30,6 +30,11 @@ function dryRunPrint(strings) {
         data.push([string.identifier, string.text, string.aiContext.join('\n')]);
     }
 
+    if (data.length < 1) {
+        console.log(`\nNo context found for any strings.\n`);
+        return;
+    }
+
     console.log(table(data, config));
 
     console.log(`\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`);
@@ -51,12 +56,17 @@ function writeCsv(options, strings) {
         };
     });
 
+    if(data.length < 1) {
+        console.log(`\nNo context found for any strings.\n`);
+        return;
+    }
+
     try {
         const parser = new Parser({ fields: ['id', 'key', 'text', 'context', 'aiContext'] });
         const csv = parser.parse(data);
 
         fs.writeFileSync(csvFile, csv);
-        console.log(`\n${strings.length} strings saved to ${chalk.green(csvFile)}\n`);
+        console.log(`\n${data.length} strings saved to ${chalk.green(csvFile)}\n`);
     } catch (err) {
         console.error(`Error writing CSV file: ${err}`);
     }
@@ -337,7 +347,8 @@ async function harvest(name, commandOptions, command) {
         }
 
         spinner.succeed();
-        const localFiles = globSync(options.localFiles, { ignore: options?.localIgnore || '' });
+
+        const localFiles = globSync(options.localFiles, { ignore: options?.localIgnore ? [options.localIgnore] : [] });
 
         let strings = [];
 
