@@ -296,17 +296,12 @@ async function harvest(name, commandOptions, command) {
         const options = commandOptions.opts();
 
         if (options.ai === 'crowdin' && !options.crowdinAiId) {
-            console.error('Error: --crowdinAiId is required when using Crowdin AI');
+            console.error('error: --crowdinAiId is required when using Crowdin AI');
             process.exit(1);
         }
 
         if (options.ai === 'openai' && !options.openAiKey.length) {
-            console.error('Error: --openAiKey is required when using OpenAI');
-            process.exit(1);
-        }
-
-        if (!options.crowdinFiles.length && !options.croql.length) {
-            console.error('Error: --crowdinFiles or --croql is required');
+            console.error('error: --openAiKey is required when using OpenAI');
             process.exit(1);
         }
 
@@ -406,7 +401,7 @@ async function harvest(name, commandOptions, command) {
             spinner.succeed();
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('error:', error);
     }
 }
 
