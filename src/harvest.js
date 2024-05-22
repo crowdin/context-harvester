@@ -56,7 +56,7 @@ function writeCsv(options, strings) {
         };
     });
 
-    if(data.length < 1) {
+    if (data.length < 1) {
         console.log(`\nNo context found for any strings.\n`);
         return;
     }
@@ -348,7 +348,7 @@ async function harvest(name, commandOptions, command) {
 
         spinner.succeed();
 
-        const localFiles = globSync(options.localFiles, { ignore: options?.localIgnore ? [options.localIgnore] : [] });
+        const localFiles = globSync(options.localFiles ? options.localFiles.split(';') : [], { ignore: options?.localIgnore ? options.localIgnore.split(';') : [] });
 
         let strings = [];
 
