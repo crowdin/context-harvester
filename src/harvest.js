@@ -7,6 +7,7 @@ import { encode } from 'gpt-tokenizer'
 import axios from 'axios';
 import { table } from 'table';
 import { Parser } from 'json2csv';
+import cliWidth from 'cli-width';
 
 const AI_MODEL_CONTEXT_WINDOW = 128000; // the context window size of the recommended AI model
 
@@ -21,13 +22,38 @@ function encodeChat(messages) {
 function dryRunPrint(strings) {
     const stringsWithAiContext = strings.filter((string) => string.aiContext);
 
-    const config = {
+    const terminalWidth = cliWidth();
 
+    // Calculate the width for each column
+    const idColumnWidth = Math.floor(terminalWidth * 0.15);
+    const textColumnWidth = Math.floor(terminalWidth * 0.35);
+    const contextColumnWidth = Math.floor(terminalWidth * 0.45);
+
+    const config = {
+        header: {
+            alignment: 'center',
+            content: 'Strings with AI Context'
+        },
+        columns: {
+            0: {
+                width: idColumnWidth,
+                wrapWord: true
+            },
+            1: {
+                width: textColumnWidth,
+                wrapWord: true
+            },
+            2: {
+                width: contextColumnWidth,
+                wrapWord: true
+            }
+        }
     };
 
     let data = [];
     for (const string of stringsWithAiContext) {
-        data.push([string.identifier, string.text, string.aiContext.join('\n')]);
+        // data.push([string.identifier, string.text, string.aiContext.join('\n')]);
+        data.push([string.identifier, string.text, `\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`]);
     }
 
     if (data.length < 1) {
@@ -35,6 +61,7 @@ function dryRunPrint(strings) {
         return;
     }
 
+    console.log('\n')
     console.log(table(data, config));
 
     console.log(`\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`);
