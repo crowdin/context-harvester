@@ -7,6 +7,7 @@ import { encode } from 'gpt-tokenizer'
 import axios from 'axios';
 import { table } from 'table';
 import { Parser } from 'json2csv';
+import cliWidth from 'cli-width';
 
 const AI_MODEL_CONTEXT_WINDOW = 128000; // the context window size of the recommended AI model
 
@@ -21,15 +22,46 @@ function encodeChat(messages) {
 function dryRunPrint(strings) {
     const stringsWithAiContext = strings.filter((string) => string.aiContext);
 
-    const config = {
+    const terminalWidth = cliWidth();
 
+    // Calculate the width for each column
+    const idColumnWidth = Math.floor(terminalWidth * 0.15);
+    const textColumnWidth = Math.floor(terminalWidth * 0.35);
+    const contextColumnWidth = Math.floor(terminalWidth * 0.45);
+
+    const config = {
+        header: {
+            alignment: 'center',
+            content: 'Strings with AI Context'
+        },
+        columns: {
+            0: {
+                width: idColumnWidth,
+                wrapWord: true
+            },
+            1: {
+                width: textColumnWidth,
+                wrapWord: true
+            },
+            2: {
+                width: contextColumnWidth,
+                wrapWord: true
+            }
+        }
     };
 
     let data = [];
     for (const string of stringsWithAiContext) {
-        data.push([string.identifier, string.text, string.aiContext.join('\n')]);
+        // data.push([string.identifier, string.text, string.aiContext.join('\n')]);
+        data.push([string.identifier, string.text, `\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`]);
     }
 
+    if (data.length < 1) {
+        console.log(`\nNo context found for any strings.\n`);
+        return;
+    }
+
+    console.log('\n')
     console.log(table(data, config));
 
     console.log(`\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`);
@@ -51,12 +83,17 @@ function writeCsv(options, strings) {
         };
     });
 
+    if (data.length < 1) {
+        console.log(`\nNo context found for any strings.\n`);
+        return;
+    }
+
     try {
         const parser = new Parser({ fields: ['id', 'key', 'text', 'context', 'aiContext'] });
         const csv = parser.parse(data);
 
         fs.writeFileSync(csvFile, csv);
-        console.log(`\n${strings.length} strings saved to ${chalk.green(csvFile)}\n`);
+        console.log(`\n${data.length} strings saved to ${chalk.green(csvFile)}\n`);
     } catch (err) {
         console.error(`Error writing CSV file: ${err}`);
     }
@@ -286,17 +323,12 @@ async function harvest(name, commandOptions, command) {
         const options = commandOptions.opts();
 
         if (options.ai === 'crowdin' && !options.crowdinAiId) {
-            console.error('Error: --crowdinAiId is required when using Crowdin AI');
+            console.error('error: --crowdinAiId is required when using Crowdin AI');
             process.exit(1);
         }
 
         if (options.ai === 'openai' && !options.openAiKey.length) {
-            console.error('Error: --openAiKey is required when using OpenAI');
-            process.exit(1);
-        }
-
-        if (!options.crowdinFiles.length && !options.croql.length) {
-            console.error('Error: --crowdinFiles or --croql is required');
+            console.error('error: --openAiKey is required when using OpenAI');
             process.exit(1);
         }
 
@@ -337,7 +369,8 @@ async function harvest(name, commandOptions, command) {
         }
 
         spinner.succeed();
-        const localFiles = globSync(options.localFiles, { ignore: options?.localIgnore || '' });
+
+        const localFiles = globSync(options.localFiles ? options.localFiles.split(';') : [], { ignore: options?.localIgnore ? options.localIgnore.split(';') : [] });
 
         let strings = [];
 
@@ -395,7 +428,7 @@ async function harvest(name, commandOptions, command) {
             spinner.succeed();
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('error:', error);
     }
 }
 
