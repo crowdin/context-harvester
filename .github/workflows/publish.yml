@@ -5,6 +5,7 @@ on:
     types: [published]
   repository_dispatch:
     types: [publish]
+  workflow_dispatch:
 
 jobs:
   publish-npm:
@@ -29,6 +30,6 @@ jobs:
 
       - name: Publish 'latest'
         run: |
-          npm publish --provenance
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
