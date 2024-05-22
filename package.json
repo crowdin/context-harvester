@@ -1,6 +1,6 @@
 {
   "name": "crowdin-context-harvester",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Crowdin AI Context Harvester CLI",
   "bin": {
     "crowdin-context-harvester": "cli.js"
