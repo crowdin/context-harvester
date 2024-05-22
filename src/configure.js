@@ -1,37 +1,53 @@
-import ora from 'ora';
 import inquirer from 'inquirer';
 import { getCrowdin } from './utils.js';
 import chalk from 'chalk';
 import axios from 'axios';
 
 async function configureCli(name, commandOptions, command) {
-    const spinner = ora();
-
     const options = commandOptions.opts();
-
-    const apiClient = await getCrowdin(options);
-
-    let projects;
-
-    try {
-        spinner.start(`Loading Crowdin projects...`);
-        projects = (await apiClient.projectsGroupsApi.withFetchAll().listProjects()).data.map(project => project.data);
-        spinner.succeed();
-    } catch (e) {
-        spinner.fail(`Error: ${e.message}`);
-        process.exit(1);
-    }
-
-    if (!projects.length) {
-        spinner.fail('No Crowdin projects found');
-        process.exit(1);
-    }
 
     const questions = [{
         type: 'list',
+        name: 'crowdin',
+        message: 'What Crowdin product do you use?',
+        choices: [{ name: 'Crowdin Enterprise', value: 'enterprise' }, { name: 'Crowdin.com', value: 'crowdin' }]
+    }, {    // only ask for org if enterprise and not provided as an option
+        type: 'input',
+        name: 'org',
+        message: 'Crowdin organization (e.g., acme):',
+        when: function (answers) {
+            return (answers.crowdin === 'enterprise' && !options.org);
+        }
+    }, {    // only ask for token if not provided as an option
+        type: 'input',
+        name: 'token',
+        message: 'Crowdin Personal API token (with Project, AI scopes):',
+        validate: async (value, answers) => {
+            try {
+                const apiClient = await getCrowdin({ token: value, org: answers.org });
+                await apiClient.projectsGroupsApi.withFetchAll(1).listProjects();   // get one project to test the token
+
+                return true;
+            } catch (e) {
+                return `Error: ${e.message}`;
+            }
+        },
+        when: function (answers) {
+            return !options.token;  // only ask for token if not provided as an option
+        }
+    }, {
+        type: 'list',
         name: 'project',
         message: 'Crowdin project:',
-        choices: projects.map(project => { return { name: project.name, value: project.id } }),
+        choices: async (answers) => {
+            const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
+
+            if (apiClient.isEnterprise) {
+                return (await apiClient.projectsGroupsApi.withFetchAll().listProjects()).data.map(project => project.data).map(project => { return { name: project.name, value: project.id } });
+            } else {
+                return (await apiClient.projectsGroupsApi.withFetchAll().listProjects()).data.map(project => project.data).map(project => { return { name: project.name, value: project.id } });
+            }
+        }
     }, {
         type: 'list',
         name: 'ai',
@@ -45,6 +61,8 @@ async function configureCli(name, commandOptions, command) {
             return answers.ai === 'crowdin';
         },
         choices: async (answers) => {
+            const apiClient = getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
+
             let aiProviders;
             if (apiClient.isEnterprise) {
                 aiProviders = (await apiClient.aiApi.withFetchAll().listAiOrganizationProviders()).data.map(provider => provider.data).filter(provider => provider.type == 'open_ai' && provider.isEnabled);
@@ -135,7 +153,7 @@ async function configureCli(name, commandOptions, command) {
         type: 'list',
         name: 'output',
         message: 'Output:',
-        default: 'terminal',
+        default: 'csv',
         choices: [{ name: 'Terminal (dry run)', value: 'terminal' }, { name: 'Crowdin project', value: 'crowdin' }, { name: 'CSV file', value: 'csv' }],
     }, {
         type: 'input',
@@ -152,6 +170,8 @@ async function configureCli(name, commandOptions, command) {
     console.log(chalk.hex('#FFA500').bold('\nYou can now execute the harvest command by running:\n'));
     console.log(chalk.green(`crowdin-context-harvester `) +
         chalk.blue('harvest ') +
+        (answers.org ? chalk.yellow('--org=') + chalk.white(`"${answers.org}" `) : '') +
+        (answers.token ? chalk.yellow('--token=') + chalk.white(`"${answers.token}" `) : '') +
         chalk.yellow('--project=') + chalk.white(`${answers.project} `) +
         chalk.yellow('--ai=') + chalk.white(`"${answers.ai}" `) +
         (answers.openai_key && !options.openAiKey ? chalk.yellow('--openAiKey=') + chalk.white(`"${answers.openai_key}" `) : '') +

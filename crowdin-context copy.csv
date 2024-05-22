@@ -1,3 +1,0 @@
-id,key,text,context,aiContext
-2533087,identifier_2,String for translation 2,asdfasdfa," > Used as the application name for a CLI tool.
- > Appears as an option description for the '--type' command-line option in a CLI application."

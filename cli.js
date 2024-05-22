@@ -25,7 +25,7 @@ Get started with the CLI by running the ${chalk.green('configure')} command.`);
 program
     .command('configure')
     .description('helps you find argument values for the harvest command')
-    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project, AI scopes)').makeOptionMandatory().env('CROWDIN_TOKEN'))
+    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project, AI scopes)').env('CROWDIN_TOKEN'))
     .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
     .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. Setting OpenAI Key as an environment variable is recommended.').env('OPENAI_KEY'))
     .action(configureCli);

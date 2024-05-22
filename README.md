@@ -1,6 +1,6 @@
 # Crowdin Context Harvester CLI
 
-The Crowdin Context Harvester CLI is designed to streamline the process of extracting context for translatable strings in your Crowdin projects. By leveraging Large Language Models (LLMs), it automatically analyzes your project code to determine how each key is used, enhancing the accuracy of translations.
+This tool is especially useful when translating UI projects with Crowdin. The Crowdin Context Harvester CLI is designed to simplify the process of extracting context for translatable strings in your Crowdin projects. Using Large Language Models (LLMs), it automatically analyzes your project code to determine how each key is used. This information is extremely useful for the human linguists or AI that will be translating your project keys, and is likely to improve the quality of the translation.
 
 <div align="center">
 
@@ -11,35 +11,17 @@ The Crowdin Context Harvester CLI is designed to streamline the process of extra
 
 ## Features
 
-- **Automated Context Extraction**: Pulls keys from your Crowdin project and analyzes your code to extract usage context.
+- **Context Extraction**: Pulls keys from your Crowdin project and analyzes your code to extract usage context.
 - **LLM Integration**: Utilizes OpenAI for sophisticated context determination.
 - **Configuration Flexibility**: The CLI comes with a handy `configure` command to help you get started quickly.
 - **CroQL Query Support**: Allows advanced filtering of Crowdin resources.
 - **Custom Prompting**: Enables custom prompts for tailored context extraction.
+- **Automation or precision**: Automatically save extracted context to Crowdin or review extracted context before saving.
 
 ## Installation
 
 ```
 npm i -g crowdin-context-harvester
-```
-
-## Usage
-
-Run the CLI with the following command:
-
-```bash
-crowdin-context-harvester harvest\
-    --token="<your-crowdin-token>"\
-    --org="acme"\
-    --project=462\
-    --ai="openai"\
-    --openAiKey="<your-openai-token>"\
-    --model="gpt-4o"\
-    --localFiles="test-data/*.*"\
-    --localIgnore="node_modules/**"\
-    --crowdinFiles="*.json"\
-    --screen="keys"\
-    --dryRun
 ```
 
 ## Configuration
@@ -62,14 +44,36 @@ crowdin-context-harvester configure
 
 This command will guide you through setting up the necessary parameters for the `harvest` command.
 
-### Running in Dry Run Mode
-It's recommended to run the command in dry run mode first:
+## Usage
+
+After configuration, your command might look like this:
 
 ```sh
-crowdin-context-harvester harvest ... arguments ... --dryRun
+crowdin-context-harvester harvest\
+    --token="<your-crowdin-token>"\
+    --org="acme"\ 
+    --project=<project-id>\
+    --ai="openai"\
+    --openAiKey="<your-openai-token>"\
+    --model="gpt-4o"\
+    --localFiles="**/*.*"\
+    --localIgnore="node_modules/**"\
+    --crowdinFiles="*.json"\
+    --screen="keys"\
+    --output="csv"
 ```
 
-This previews the suggested AI contexts without making any changes in Crowdin.
+__Note:__ The `org` argument is required for Crowdin Enterprise only. Passing all credentials as environment variables is recommended.
+
+When this command is executed, the CLI will pull strings from all Crowdin files that match the `--crowdinFiles` glob pattern, then go through all files that match `--localFiles`, check if strings from Crowdin files are present in every file on your computer (because of the `--screen="keys"`), and if they are, both matching strings and the code files will be sent to LLM with a prompt to extract contextual information, information about how these strings are used in the code, how they appear to the end user in the UI, etc.
+
+Extracted context will be saved to the csv file. Add the `--csvFile' argument to change the resulting csv file name.
+
+You can now review the extracted context and save the CSV. After reviewing, you can upload newly added context to Crowdin by running:
+
+```sh
+crowdin-context-harvester upload -p <project-id> --csvFile=<csv-file-name>
+```
 
 ### Custom Prompt
 
@@ -77,6 +81,12 @@ Use a custom prompt with:
 
 ```sh
 crowdin-context-harvester harvest ... arguments ... --promptFile="<path-to-custom-prompt>"
+```
+
+or
+
+```sh
+cat <path-to-custom-prompt> | crowdin-context-harvester harvest ... arguments ...
 ```
 
 Example custom prompt file:
@@ -106,6 +116,7 @@ For large projects, use the `--screen` option to filter keys or texts before sen
 ```sh
 crowdin-context-harvester harvest ... arguments ... --screen="keys"
 ```
+
 
 ### Removing AI Context
 To remove previously added AI context, use the reset command:
