@@ -69,7 +69,7 @@ function dryRunPrint(strings) {
 
 // writes the strings with AI context to a CSV file
 function writeCsv(options, strings) {
-    const csvFile = options.csvFile || 'crowdin-context.csv';
+    const csvFile = options.csvFile;
 
     const stringsWithAiContext = strings.filter((string) => string.aiContext);
 

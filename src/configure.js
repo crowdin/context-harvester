@@ -139,7 +139,7 @@ async function configureCli(name, commandOptions, command) {
         type: 'input',
         name: 'localIgnore',
         message: 'Ignore local files (glob pattern). Make sure to exclude unnecessary files to avoid unnecessary AI API calls:',
-        default: 'node_modules/**',
+        default: '/**/node_modules/**',
     }, {
         type: 'input',
         name: 'crowdinFiles',

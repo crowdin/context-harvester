@@ -33,6 +33,7 @@ program
     .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project, AI scopes)').env('CROWDIN_TOKEN'))
     .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
     .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. Setting OpenAI Key as an environment variable is recommended.').env('OPENAI_KEY'))
+    .aliases(['init'])
     .action(configureCli);
 
 program
@@ -41,18 +42,31 @@ program
     .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project and AI scopes granted).').makeOptionMandatory().env('CROWDIN_TOKEN'))
     .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme).').env('CROWDIN_ORG'))
     .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
-    .addOption(new Option('-a, --ai <provider>', 'AI provider (e.g., "crowdin" or "openai").').makeOptionMandatory())
+    .addOption(new Option('-a, --ai <provider>', 'AI provider (e.g., "crowdin" or "openai").').default('openai').makeOptionMandatory())
     .addOption(new Option('-ci, --crowdinAiId <id>', 'Crowdin AI provider ID (e.g. 12). This option is mandatory if "crowdin" is chosen as the AI provider.'))
     .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. This option is mandatory if "openai" is chosen as the AI provider.').env('OPENAI_KEY'))
     .addOption(new Option('-m, --model <model>', 'AI model. Should accept at least 128,000 tokens context window and support tool calls.').default('gpt-4o').makeOptionMandatory())
-    .addOption(new Option('-cp, --promptFile <path>', 'Path to a file containing a custom prompt. Use "-" to read from STDIN.'))
+    .addOption(new Option('-cp, --promptFile <path>', 'path to a file containing a custom prompt. Use "-" to read from STDIN. (optional)'))
     .addOption(new Option('-l, --localFiles <pattern>', 'local file names pattern (valid glob pattern, multiple patterns are possible, separated by ";".)').default('**/*.*').makeOptionMandatory())
-    .addOption(new Option('-i, --localIgnore <pattern>', 'local file names to ignore (valid glob pattern, multiple patterns are possible, separated by ";".)').default('node_modules/**'))
-    .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default(''))
-    .addOption(new Option('-q, --croql <croql>', 'use CroQL to select a specific subset of strings to extract context for (e.g. strings without AI context, strings modified since specific date, etc.). Cannot be set together with the crowdinFiles argument.').default(''))
-    .addOption(new Option('-s, --screen <keys | texts>', 'check if the code contains the key or the text of the string before sending it to the AI model (recommended if you have thousands of keys to avoid chunking and improve speed). If the text value is selected, efficiency may be reduced.').default('keys'))
+    .addOption(new Option('-i, --localIgnore <pattern>', 'local file names to ignore (valid glob pattern, multiple patterns are possible, separated by ";".)').default('/**/node_modules/**'))
+    .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default('**/*.*'))
+    .addOption(new Option('-q, --croql <croql>', 'use CroQL to select a specific subset of strings to extract context for (e.g. strings without AI context, strings modified since specific date, etc.). Cannot be set together with the crowdinFiles argument.'))
+    .addOption(new Option('-s, --screen <keys | texts>', 'check if the code contains the key or the text of the string before sending it to the AI model (recommended if you have thousands of keys to avoid chunking and improve speed). If the "text" value is selected, efficiency may be reduced.').default('keys'))
     .addOption(new Option('-w, --output <csv | terminal | crowdin>', 'output destination for extracted context. "terminal" can be considered as a dry run. "crowdin" will save the extracted context to the Crowdin project. "csv" will save the extracted context to a CSV file for review.').default('csv').makeOptionMandatory())
-    .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file to save extracted context to.'))
+    .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file to save extracted context to.').default('crowdin-context.csv'))
+    .aliases(['extract'])
+    .addHelpText(
+        'after',
+        `
+It's recommended to configure your Crowdin and OpenAI credentials in the environment variables before running the command.
+
+Examples:
+    $ crowdin-context-harvester harvest --project=462
+    $ crowdin-context-harvester harvest --project=462 --crowdinFiles="strings.xml"
+    $ crowdin-context-harvester harvest --project=462 --crowdinFiles="strings.xml" --localFiles="src/*"
+    $ crowdin-context-harvester harvest --project=462 --croql='not (context contains "✨ AI Context")'
+    $ crowdin-context-harvester harvest --project=462 --croql="added between '2023-12-06 13:44:14' and '2023-12-07 13:44:14'" --output=terminal
+    `)
     .action(harvest);
 
 program
@@ -61,7 +75,16 @@ program
     .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project scope)').makeOptionMandatory().env('CROWDIN_TOKEN'))
     .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
     .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
-    .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file with reviewed context').makeOptionMandatory())
+    .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file with reviewed context').default('crowdin-context.csv').makeOptionMandatory())
+    .aliases(['add', 'sync'])
+    .addHelpText(
+        'after',
+        `
+It's recommended to configure your Crowdin and OpenAI credentials in the environment variables before running the command.
+
+Examples:
+    $ crowdin-context-harvester upload --project=462
+    $ crowdin-context-harvester upload --project=462 --csvFile "crowdin-context.csv"`)
     .action(upload);
 
 program
@@ -71,6 +94,15 @@ program
     .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
     .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
     .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default('**/*.*'))
+    .aliases(['remove', 'clean', 'delete'])
+    .addHelpText(
+        'after',
+        `
+It's recommended to configure your Crowdin and OpenAI credentials in the environment variables before running the command.
+
+Examples:
+    $ crowdin-context-harvester reset -p 462 --crowdinFiles="strings.xml"
+    $ crowdin-context-harvester reset -p 462 --crowdinFiles="*.json"`)
     .action(reset);
 
 
