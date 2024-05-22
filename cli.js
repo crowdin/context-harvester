@@ -4,6 +4,7 @@ import { Command, Option } from 'commander';
 import configureCli from './src/configure.js';
 import harvest from './src/harvest.js';
 import reset from './src/reset.js';
+import upload from './src/upload.js';
 import chalk from 'chalk';
 
 const program = new Command();
@@ -43,11 +44,20 @@ program
     .addOption(new Option('-l, --localFiles <pattern>', 'local file names pattern (valid glob pattern)').default('**/*.*').makeOptionMandatory())
     .addOption(new Option('-i, --localIgnore <pattern>', 'local file names to ignore (valid glob pattern)').default('node_modules/**'))
     .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default(''))
-    .addOption(new Option('-y, --autoConfirm', 'automatically confirm all extracted contexts, otherwise you will be asked to confirm or edit the extracted context for each key').default(false))
     .addOption(new Option('-q, --croql <croql>', 'use CroQL to select a specific subset of strings to extract context for (e.g. strings without AI context, strings modified since specific date, etc.). Cannot be set together with the crowdinFiles argument.').default(''))
     .addOption(new Option('-s, --screen <keys | texts>', 'check if the code contains the key or the text of the string before sending it to the AI model (recommended if you have thousands of keys to avoid chunking and improve speed). If the text value is selected, efficiency may be reduced.').default('keys'))
-    .addOption(new Option('-d, --dryRun', 'do not write extracted context to Crowdin, just show what would be written').default(false))
+    .addOption(new Option('-w, --output <csv | terminal | crowdin>', 'output destination for extracted context. "terminal" can be considered as a dry run. "crowdin" will save the extracted context to the Crowdin project. "csv" will save the extracted context to a CSV file for review.').default('csv').makeOptionMandatory())
+    .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file to save extracted context to.'))
     .action(harvest);
+
+program
+    .command('upload')
+    .description('upload the reviewed context to Crowdin project')
+    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project scope)').makeOptionMandatory().env('CROWDIN_TOKEN'))
+    .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
+    .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
+    .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file with reviewed context').makeOptionMandatory())
+    .action(upload);
 
 program
     .command('reset')
@@ -57,5 +67,6 @@ program
     .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
     .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default('**/*.*'))
     .action(reset);
+
 
 program.parse(process.argv);

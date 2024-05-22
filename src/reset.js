@@ -47,7 +47,7 @@ async function reset(name, commandOptions, command) {
         }
 
         strings = strings.filter((string) => {
-            return string.context.indexOf('✨ AI Context') !== -1;
+            return string?.context?.indexOf('✨ AI Context') !== -1;
         });
 
         try {
@@ -77,11 +77,13 @@ async function updateStrings(apiClient, project, strings) {
 
 // Remove AI context from the string context
 function removeAIContext(context) {
+    if(!context) return context;
+
     const aiContextSection = '\n\n✨ AI Context\n';
     const endAiContextSection = '\n✨ 🔚';
 
-    const aiContextIndex = context.indexOf(aiContextSection);
-    const endAiContextIndex = context.indexOf(endAiContextSection);
+    const aiContextIndex = context?.indexOf(aiContextSection);
+    const endAiContextIndex = context?.indexOf(endAiContextSection);
 
     if (aiContextIndex !== -1 && endAiContextIndex !== -1) {
         return context.substring(0, aiContextIndex) + context.substring(endAiContextIndex + endAiContextSection.length);

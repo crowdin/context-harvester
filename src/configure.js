@@ -30,17 +30,17 @@ async function configureCli(name, commandOptions, command) {
     const questions = [{
         type: 'list',
         name: 'project',
-        message: 'Select the Crowdin project:',
+        message: 'Crowdin project:',
         choices: projects.map(project => { return { name: project.name, value: project.id } }),
     }, {
         type: 'list',
         name: 'ai',
-        message: 'Select the AI provider:',
+        message: 'AI provider:',
         choices: [{ name: 'OpenAI', value: 'openai' }, { name: 'Crowdin AI Provider', value: 'crowdin' }]
     }, {
         type: 'list',
         name: 'crowdin_ai_id',
-        message: 'Select the Crowdin AI provider (you should have the OpenAI provider configured in Crowdin):',
+        message: 'Crowdin AI provider (you should have the OpenAI provider configured in Crowdin):',
         when: function (answers) {
             return answers.ai === 'crowdin';
         },
@@ -62,14 +62,14 @@ async function configureCli(name, commandOptions, command) {
     }, {
         type: 'input',
         name: 'openai_key',
-        message: 'Enter your OpenAI key:',
+        message: 'OpenAI key:',
         when: function (answers) {
             return answers.ai === 'openai' && !options.openAiKey;
         }
     }, {
         type: 'list',
         name: 'model',
-        message: 'Select the AI model (gpt-4o or newer recommended):',
+        message: 'AI model (gpt-4o or newer required):',
         default: 'gpt-4o',
         choices: async (answers) => {
             if (answers.ai === 'crowdin') {
@@ -111,36 +111,40 @@ async function configureCli(name, commandOptions, command) {
     }, {
         type: 'input',
         name: 'promptFile',
-        message: 'Enter the path to a file containing a custom prompt. "-" to read from STDIN (optional):',
+        message: 'Custom prompt file. "-" to read from STDIN (optional):',
     }, {
         type: 'input',
         name: 'localFiles',
-        message: 'Enter the path to the local files (glob pattern):',
+        message: 'Local files (glob pattern):',
         default: '**/*.*',
     }, {
         type: 'input',
         name: 'localIgnore',
-        message: 'Enter the path to the local ignore files (glob pattern). Make sure to exclude unnecessary files to avoid unnecessary AI API calls:',
+        message: 'Ignore local files (glob pattern). Make sure to exclude unnecessary files to avoid unnecessary AI API calls:',
         default: 'node_modules/**',
     }, {
         type: 'input',
         name: 'crowdinFiles',
-        message: 'Enter the path to the Crowdin files (glob pattern e.g. **/*.*).:',
-        default: '',
-    }, {
-        type: 'list',
-        name: 'yes',
-        choices: [{ name: 'Review before saving', value: false }, { name: 'Save extracted content without review', value: true }],
-        message: 'Do you want to review and confirm each extracted context manually?',
+        message: 'Crowdin files (glob pattern e.g. **/*.*).:',
+        default: '**/*.*',
     }, {
         type: 'input',
         name: 'croql',
         message: 'CroQL query (optional):',
     }, {
-        type: 'confirm',
-        name: 'dryRun',
-        message: 'Do you want to run a dry run (no changes to Crowdin)?',
-        default: false
+        type: 'list',
+        name: 'output',
+        message: 'Output:',
+        default: 'terminal',
+        choices: [{ name: 'Terminal (dry run)', value: 'terminal' }, { name: 'Crowdin project', value: 'crowdin' }, { name: 'CSV file', value: 'csv' }],
+    }, {
+        type: 'input',
+        name: 'csvFile',
+        message: 'Output CSV file (file name or path):',
+        default: 'crowdin-context.csv',
+        when: function (answers) {
+            return answers.output === 'csv';
+        }
     }];
 
     const answers = await inquirer.prompt(questions);
@@ -159,8 +163,8 @@ async function configureCli(name, commandOptions, command) {
         chalk.yellow('--crowdinFiles=') + chalk.white(`"${answers.crowdinFiles}" `) +
         (answers.screen !== 'none' ? chalk.yellow('--screen=') + chalk.white(`"${answers.screen}" `) : '') +
         (answers.croql.length > 0 ? chalk.yellow('--croql=') + chalk.white(`"${answers.croql.replaceAll('"', '\\\"')}" `) : '') +
-        chalk.yellow(answers.dryRun ? `--dryRun ` : '') +
-        (answers.yes ? chalk.yellow(`--autoConfirm`) : '')
+        chalk.yellow('--output=') + chalk.white(`"${answers.output}" `) +
+        (answers.csvFile ? chalk.yellow('--csvFile=') + chalk.white(`"${answers.csvFile}" `) : '')
         + '\n\n'
     );
 }

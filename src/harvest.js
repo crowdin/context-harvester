@@ -1,12 +1,12 @@
 import fs from 'fs';
 import { globSync } from 'glob';
 import ora from 'ora';
-import { getCrowdin, getCrowdinFiles, fetchCrowdinStrings } from './utils.js';
-import inquirer from 'inquirer';
+import { getCrowdin, getCrowdinFiles, fetchCrowdinStrings, uploadAiStringsToCrowdin } from './utils.js';
 import chalk from 'chalk';
 import { encode } from 'gpt-tokenizer'
 import axios from 'axios';
-import Table from 'cli-table3';
+import { table } from 'table';
+import { Parser } from 'json2csv';
 
 const AI_MODEL_CONTEXT_WINDOW = 128000; // the context window size of the recommended AI model
 
@@ -17,60 +17,55 @@ function encodeChat(messages) {
     return encode(messages.map(message => message.content).join('\n\n'));
 }
 
-// updates strings in Crowdin with the AI extracted context
-async function updateStrings(options, apiClient, project, strings) {
-    const stringsWithAiContext = strings.filter((string) => string?.aiContext?.length > 0);
-
-    const contextUpdateBatchRequest = [];
-    for (const string of stringsWithAiContext) {
-        contextUpdateBatchRequest.push({
-            op: 'replace',
-            path: `/${string.id}/context`,
-            value: appendAiContext(string.context, string.aiContext),
-        });
-    }
-
-    await apiClient.sourceStringsApi.stringBatchOperations(project, contextUpdateBatchRequest);
-}
-
 // prints the strings that would be updated in a dry run
 function dryRunPrint(strings) {
-    const table = new Table({
-        head: ['Key', 'Text', 'AI Context'],
-    });
-
     const stringsWithAiContext = strings.filter((string) => string.aiContext);
 
+    const config = {
+
+    };
+
+    let data = [];
     for (const string of stringsWithAiContext) {
-        table.push(
-            [string.identifier, string.text, string.aiContext.join('\n')],
-        );
+        data.push([string.identifier, string.text, string.aiContext.join('\n')]);
     }
 
-    console.log(table.toString());
+    console.log(table(data, config));
 
     console.log(`\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`);
 }
 
-// appends the AI extracted context to the existing context
-function appendAiContext(context, aiContext) {
-    const aiContextSection = '\n\n✨ AI Context\n';
-    const endAiContextSection = '\n✨ 🔚';
+// writes the strings with AI context to a CSV file
+function writeCsv(options, strings) {
+    const csvFile = options.csvFile || 'crowdin-context.csv';
 
-    const aiContextIndex = context.indexOf(aiContextSection);
-    const endAiContextIndex = context.indexOf(endAiContextSection);
+    const stringsWithAiContext = strings.filter((string) => string.aiContext);
 
-    if (aiContextIndex !== -1 && endAiContextIndex !== -1) {
-        return context.substring(0, aiContextIndex) + aiContextSection + aiContext.join('\n') + endAiContextSection + context.substring(endAiContextIndex + endAiContextSection.length);
+    const data = stringsWithAiContext.map((string) => {
+        return {
+            id: string.id,
+            key: string.identifier,
+            text: string.text,
+            context: string.context,
+            aiContext: string.aiContext.join('\n'),
+        };
+    });
+
+    try {
+        const parser = new Parser({ fields: ['id', 'key', 'text', 'context', 'aiContext'] });
+        const csv = parser.parse(data);
+
+        fs.writeFileSync(csvFile, csv);
+        console.log(`\n${strings.length} strings saved to ${chalk.green(csvFile)}\n`);
+    } catch (err) {
+        console.error(`Error writing CSV file: ${err}`);
     }
-
-    return context + aiContextSection + aiContext.join('\n') + endAiContextSection;
 }
 
 // this function runs at the end of the context extraction process
 // it goes through all extracted contexts, compile an array of contexts for every string
 // if user wanted to confirm the context, it will ask for confirmation
-async function appendContext(options, strings, stringsContext) {
+async function appendContext(strings, stringsContext) {
     for (const context of stringsContext?.contexts || []) {
         const string = strings.find((s) => s.id === context.id);
 
@@ -79,31 +74,7 @@ async function appendContext(options, strings, stringsContext) {
                 string.aiContext = [];
             }
 
-            let finalContext = null;
-
-            if (!options.autoConfirm && !options.dryRun) {
-                const answers = await inquirer.prompt([{
-                    type: 'confirm',
-                    name: 'confirm',
-                    message: `Is the context: \n\n${chalk.green(context.context)}\n\nsuitable for the string: \n\n${chalk.blue(string.identifier || '--no-key-provided--')}: "${chalk.green(string.text)}"\n\n`,
-                    default: true,
-                }, {
-                    type: 'input',
-                    name: 'userContext',
-                    message: 'If you want to provide a different context, please type it here (leave blank to use the suggested context):',
-                    when: (answers) => answers.confirm === false,
-                }]);
-
-                finalContext = answers.userContext || context.context;
-
-                if (!answers.confirm && !answers.userContext) {
-                    finalContext = null;
-                }
-            } else {
-                finalContext = context.context;
-            }
-
-            finalContext && string.aiContext.push(finalContext);
+            context?.context && string.aiContext.push(context.context);
         }
     }
 }
@@ -405,7 +376,7 @@ async function harvest(name, commandOptions, command) {
 
                 // append newly found context to the array of AI contexts
                 try {
-                    await appendContext(options, strings, context);
+                    await appendContext(strings, context);
                 } catch (error) {
                     console.error(`\nError appending context from ${localFile}: ${error}. AI Might have returned an empty or invalid context. Proceeding with other files...`);
                     console.error(context);
@@ -414,11 +385,13 @@ async function harvest(name, commandOptions, command) {
             }
         }
 
-        if (options.dryRun) {
+        if (options.output === 'terminal') {
             dryRunPrint(strings);
-        } else {
+        } else if (options.output === 'csv') {
+            writeCsv(options, strings);
+        } else if (options.output === 'crowdin') {
             spinner.start(`Updating Crowdin strings...`);
-            updateStrings(options, apiClient, options.project, strings);
+            uploadAiStringsToCrowdin(apiClient, options.project, strings);
             spinner.succeed();
         }
     } catch (error) {
