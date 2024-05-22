@@ -2,6 +2,13 @@
 
 The Crowdin Context Harvester CLI is designed to streamline the process of extracting context for translatable strings in your Crowdin projects. By leveraging Large Language Models (LLMs), it automatically analyzes your project code to determine how each key is used, enhancing the accuracy of translations.
 
+<div align="center">
+
+[![npm](https://img.shields.io/npm/v/crowdin-context-harvester?logo=npm&cacheSeconds=1800)](https://www.npmjs.com/package/crowdin-context-harvester)
+[![npm](https://img.shields.io/npm/dt/crowdin-context-harvester?logo=npm&cacheSeconds=1800)](https://www.npmjs.com/package/crowdin-context-harvester)
+
+</div>
+
 ## Features
 
 - **Automated Context Extraction**: Pulls keys from your Crowdin project and analyzes your code to extract usage context.
@@ -9,6 +16,12 @@ The Crowdin Context Harvester CLI is designed to streamline the process of extra
 - **Configuration Flexibility**: The CLI comes with a handy `configure` command to help you get started quickly.
 - **CroQL Query Support**: Allows advanced filtering of Crowdin resources.
 - **Custom Prompting**: Enables custom prompts for tailored context extraction.
+
+## Installation
+
+```
+npm i -g crowdin-context-harvester
+```
 
 ## Usage
 
