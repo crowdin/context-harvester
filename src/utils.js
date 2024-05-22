@@ -67,8 +67,40 @@ async function fetchCrowdinStrings(apiClient, project, isStringsProject, contain
     });
 }
 
+// appends the AI extracted context to the existing context
+function appendAiContext(context, aiContext) {
+    const aiContextSection = '\n\n✨ AI Context\n';
+    const endAiContextSection = '\n✨ 🔚';
+
+    const aiContextIndex = context.indexOf(aiContextSection);
+    const endAiContextIndex = context.indexOf(endAiContextSection);
+
+    if (aiContextIndex !== -1 && endAiContextIndex !== -1) {
+        return context.substring(0, aiContextIndex) + aiContextSection + aiContext.join('\n') + endAiContextSection + context.substring(endAiContextIndex + endAiContextSection.length);
+    }
+
+    return context + aiContextSection + aiContext.join('\n') + endAiContextSection;
+}
+
+// updates strings in Crowdin with the AI extracted context
+async function uploadAiStringsToCrowdin(apiClient, project, strings) {
+    const stringsWithAiContext = strings.filter((string) => string?.aiContext?.length > 0);
+
+    const contextUpdateBatchRequest = [];
+    for (const string of stringsWithAiContext) {
+        contextUpdateBatchRequest.push({
+            op: 'replace',
+            path: `/${string.id}/context`,
+            value: appendAiContext(string.context, string.aiContext),
+        });
+    }
+
+    await apiClient.sourceStringsApi.stringBatchOperations(project, contextUpdateBatchRequest);
+}
+
 export {
     getCrowdin,
     getCrowdinFiles,
     fetchCrowdinStrings,
+    uploadAiStringsToCrowdin,
 };
