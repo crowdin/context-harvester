@@ -1,6 +1,7 @@
 {
   "name": "crowdin-context-harvester",
-  "version": "1.0.0",
+  "version": "0.0.0",
+  "description": "Crowdin AI Context Harvester CLI",
   "bin": {
     "crowdin-context-harvester": "cli.js"
   },
@@ -9,10 +10,25 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "description": "Crowdin AI Context Harvester CLI",
+  "keywords": [
+    "crowin",
+    "ai",
+    "context",
+    "harvester",
+    "cli",
+    "l10n",
+    "i18n",
+    "ai-translation"
+  ],
+  "files": [
+    "cli.js",
+    "src/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@crowdin/crowdin-api-client": "^1.33.1",
     "axios": "^1.7.1",
@@ -25,5 +41,6 @@
     "inquirer": "^9.2.22",
     "minimatch": "^9.0.4",
     "ora": "^8.0.1"
-  }
+  },
+  "license": "MIT"
 }
