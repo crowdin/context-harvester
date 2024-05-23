@@ -61,7 +61,7 @@ async function configureCli(name, commandOptions, command) {
             return answers.ai === 'crowdin';
         },
         choices: async (answers) => {
-            const apiClient = getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
+            const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
 
             let aiProviders;
             if (apiClient.isEnterprise) {
@@ -91,6 +91,8 @@ async function configureCli(name, commandOptions, command) {
         default: 'gpt-4o',
         choices: async (answers) => {
             if (answers.ai === 'crowdin') {
+                const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
+
                 let models = [];
 
                 if (apiClient.aiApi.organization) {
