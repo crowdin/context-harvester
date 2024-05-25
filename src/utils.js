@@ -1,9 +1,11 @@
+//@ts-check
 import crowdin from '@crowdin/crowdin-api-client';
 import { minimatch } from 'minimatch';
 
 // returns a Crowdin API client
 // this function looks for the .org property to determine if the client is for crowdin.com or CrowdIn Enterprise
 async function getCrowdin(options) {
+    //@ts-ignore
     const apiClient = new crowdin.default({
         token: options.token,
         ...(options.org && { organization: options.org }),
@@ -24,24 +26,40 @@ async function getCrowdin(options) {
     return apiClient;
 }
 
-async function getCrowdinFiles(apiClient, project, filesPattern) {
+/**
+ * @param {object} param0 
+ * @param {object} param0.apiClient
+ * @param {number} param0.project
+ * @param {string} param0.filesPattern
+ */
+async function getCrowdinFiles({ apiClient, project, filesPattern }) {
     let files = (await apiClient.sourceFilesApi.withFetchAll().listProjectFiles(project)).data.map(file => file.data);
 
     // filter out files from the list taht match the glob pattern in files variable
-    return files.filter((file) => {
-        return minimatch(file.path, filesPattern || '*', {
-            matchBase: true
-        });
-    }).map((file) => {
-        return {
-            id: file.id,
-            path: file.path,
-        };
-    });
+    return files
+        .filter((file) =>
+            minimatch(file.path, filesPattern || '*', {
+                matchBase: true
+            })
+        )
+        .map((file) => (
+            {
+                id: file.id,
+                path: file.path,
+            }
+        ));
 }
 
-async function fetchCrowdinStrings(apiClient, project, isStringsProject, container, strings, croql) {
-    let filter = {};
+/**
+ * @param {object} param0 
+ * @param {object} param0.apiClient
+ * @param {number} param0.project
+ * @param {boolean} param0.isStringsProject
+ * @param {object} param0.container
+ * @param {string} [param0.croql]
+ */
+async function fetchCrowdinStrings({ apiClient, project, isStringsProject, container, croql }) {
+    const filter = {};
 
     if (isStringsProject) {
         filter.branchId = container.id;
@@ -55,19 +73,23 @@ async function fetchCrowdinStrings(apiClient, project, isStringsProject, contain
 
     const crowdinStrings = (await apiClient.sourceStringsApi.withFetchAll().listProjectStrings(project, filter)).data.map((string) => string.data);
 
-    // merge the strings from the file or branch with the global strings array
-    strings.push(...crowdinStrings);
-
-    return crowdinStrings.map((string) => {
+    const strings = crowdinStrings.map((string) => {
         return {
             id: string.id,
             text: string.text,
             key: string.identifier,
         };
     });
+
+    return { crowdinStrings, strings };
 }
 
-// appends the AI extracted context to the existing context
+/**
+ * Appends the AI extracted context to the existing context
+ * 
+ * @param {string} context 
+ * @param {string[]} aiContext
+ */
 function appendAiContext(context, aiContext) {
     const aiContextSection = '\n\n✨ AI Context\n';
     const endAiContextSection = '\n✨ 🔚';
@@ -82,8 +104,38 @@ function appendAiContext(context, aiContext) {
     return context + aiContextSection + aiContext.join('\n') + endAiContextSection;
 }
 
-// updates strings in Crowdin with the AI extracted context
-async function uploadAiStringsToCrowdin(apiClient, project, strings) {
+/**
+ * Remove AI context from the string context
+ * 
+ * @param {string} context 
+ */
+function removeAIContext(context) {
+    if (!context) {
+        return context;
+    };
+
+    const aiContextSection = '\n\n✨ AI Context\n';
+    const endAiContextSection = '\n✨ 🔚';
+
+    const aiContextIndex = context?.indexOf(aiContextSection);
+    const endAiContextIndex = context?.indexOf(endAiContextSection);
+
+    if (aiContextIndex !== -1 && endAiContextIndex !== -1) {
+        return context.substring(0, aiContextIndex) + context.substring(endAiContextIndex + endAiContextSection.length);
+    }
+
+    return context;
+}
+
+/**
+ * Updates strings in Crowdin with the AI extracted context
+ * 
+ * @param {object} param0 
+ * @param {object} param0.apiClient
+ * @param {number} param0.project
+ * @param {Array<object>} param0.strings
+ */
+async function uploadAiStringsToCrowdin({ apiClient, project, strings }) {
     const stringsWithAiContext = strings.filter((string) => string?.aiContext?.length > 0);
 
     const contextUpdateBatchRequest = [];
@@ -98,9 +150,31 @@ async function uploadAiStringsToCrowdin(apiClient, project, strings) {
     await apiClient.sourceStringsApi.stringBatchOperations(project, contextUpdateBatchRequest);
 }
 
+/**
+ * Updates strings in Crowdin without the AI extracted context
+ * 
+ * @param {object} param0 
+ * @param {object} param0.apiClient
+ * @param {number} param0.project
+ * @param {Array<object>} param0.strings
+ */
+async function uploadWithoutAiStringsToCrowdin({ apiClient, project, strings }) {
+    const contextUpdateBatchRequest = [];
+    for (const string of strings) {
+        contextUpdateBatchRequest.push({
+            op: 'replace',
+            path: `/${string.id}/context`,
+            value: removeAIContext(string.context),
+        });
+    }
+
+    await apiClient.sourceStringsApi.stringBatchOperations(project, contextUpdateBatchRequest);
+}
+
 export {
     getCrowdin,
     getCrowdinFiles,
     fetchCrowdinStrings,
     uploadAiStringsToCrowdin,
+    uploadWithoutAiStringsToCrowdin,
 };
