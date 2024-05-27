@@ -107,8 +107,7 @@ function dryRunPrint(strings) {
 
     let data = [];
     for (const string of stringsWithAiContext) {
-        // data.push([string.identifier, string.text, string.aiContext.join('\n')]);
-        data.push([string.identifier, string.text, `\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`]);
+        data.push([string.identifier, string.text, string.aiContext.join('\n')]);
     }
 
     if (data.length < 1) {
