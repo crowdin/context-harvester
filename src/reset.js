@@ -1,6 +1,6 @@
 //@ts-check
 import ora from 'ora';
-import { getCrowdin, getCrowdinFiles, fetchCrowdinStrings, uploadWithoutAiStringsToCrowdin } from './utils.js';
+import { getCrowdin, getCrowdinFiles, fetchCrowdinStrings, uploadWithoutAiStringsToCrowdin, AI_CONTEXT_SECTION_END } from './utils.js';
 
 const spinner = ora();
 
@@ -58,7 +58,7 @@ async function reset(_name, commandOptions, _command) {
         }
 
         strings = strings.filter((string) => {
-            return string?.context?.indexOf('✨ AI Context') !== -1;
+            return string?.context?.indexOf(AI_CONTEXT_SECTION_END) !== -1;
         });
 
         try {

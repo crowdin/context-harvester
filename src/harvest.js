@@ -8,7 +8,7 @@ import { encode } from 'gpt-tokenizer';
 import { Parser } from 'json2csv';
 import ora from 'ora';
 import { table } from 'table';
-import { fetchCrowdinStrings, getCrowdin, getCrowdinFiles, uploadAiStringsToCrowdin } from './utils.js';
+import { fetchCrowdinStrings, getCrowdin, getCrowdinFiles, uploadAiStringsToCrowdin, getUserId } from './utils.js';
 
 const AI_MODEL_CONTEXT_WINDOW = 128000; // the context window size of the recommended AI model
 
@@ -268,12 +268,12 @@ async function chunkAndExtract({ apiClient, options, content, crowdinStrings, fi
         for (let i = 0; i < chunks.length; i++) {
             for (let j = 0; j < contentChunks.length; j++) {
                 spinner.start(`Chunk ${i + 1}/${chunks.length} and content chunk ${j + 1}/${contentChunks.length}...`);
-                const result = await executePrompt({
+                const newAiContext = await executePrompt({
                     apiClient,
                     options,
                     messages: buildMessages({ options, crowdinStrings: chunks[i], content: contentChunks[j] }),
                 });
-                result.push(result.contexts);
+                result.push(newAiContext.contexts);
                 spinner.succeed();
             }
         }
@@ -281,12 +281,12 @@ async function chunkAndExtract({ apiClient, options, content, crowdinStrings, fi
         // if chunked strings fit into the AI model with full code, we send every strings chunk with the full code
         for (let chunk of chunks) {
             chunks.length > 1 && spinner.start(`Chunk ${chunks.indexOf(chunk) + 1}/${chunks.length}...`);
-            const result = await executePrompt({
+            const newAiContext = await executePrompt({
                 apiClient,
                 options,
                 messages: buildMessages({ options, crowdinStrings: chunk, content }),
             });
-            result.push(result.contexts);
+            result.push(newAiContext.contexts);
             chunks.length > 1 && spinner.succeed();
         }
     }
@@ -359,14 +359,14 @@ function getPrompt({ options, strings, content }) {
 async function executePrompt({ apiClient, options, messages }) {
     if (options.ai === 'crowdin') {
         let aiResponse;
-        if (apiClient.isEnterprise) {
+        if (apiClient.aiApi.organization) {
             aiResponse = (await apiClient.aiApi.createAiOrganizationProxyChatCompletion(options.crowdinAiId, {
                 model: options.model,
                 messages,
                 tools: AI_TOOLS
             }));
         } else {
-            aiResponse = (await apiClient.aiApi.createAiUserProxyChatCompletion(apiClient.userId, options.crowdinAiId, {
+            aiResponse = (await apiClient.aiApi.createAiUserProxyChatCompletion(await getUserId(apiClient), options.crowdinAiId, {
                 model: options.model,
                 messages,
                 tools: AI_TOOLS
@@ -375,7 +375,7 @@ async function executePrompt({ apiClient, options, messages }) {
 
         const functionArguments = aiResponse?.data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
         return functionArguments ? JSON.parse(functionArguments) : [];
-    } else {
+    } else if (options.ai === 'openai') {
         const openAiResponse = (await axios.post('https://api.openai.com/v1/chat/completions', {
             model: options.model,
             tools: AI_TOOLS,
@@ -389,6 +389,9 @@ async function executePrompt({ apiClient, options, messages }) {
 
         const functionArguments = openAiResponse?.data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
         return functionArguments ? JSON.parse(functionArguments) : [];
+    } else {
+        console.error('\n\nInvalid AI provider');
+        process.exit(1);
     }
 }
 

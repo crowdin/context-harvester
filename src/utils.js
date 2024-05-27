@@ -2,6 +2,9 @@
 import crowdin from '@crowdin/crowdin-api-client';
 import { minimatch } from 'minimatch';
 
+const AI_CONTEXT_SECTION_START = '✨ AI Context';
+const AI_CONTEXT_SECTION_END = '✨ 🔚';
+
 // returns a Crowdin API client
 // this function looks for the .org property to determine if the client is for crowdin.com or CrowdIn Enterprise
 async function getCrowdin(options) {
@@ -10,18 +13,6 @@ async function getCrowdin(options) {
         token: options.token,
         ...(options.org && { organization: options.org }),
     });
-
-    try {
-        if (!options.org) {
-            const user = (await apiClient.usersApi.getAuthenticatedUser()).data;
-            apiClient.userId = user.id; //NOTE: this is probably not nice
-        }
-    } catch (e) {
-        console.error('Error: Invalid Crowdin token');
-        process.exit(1);
-    }
-
-    apiClient.isEnterprise = !!options.org;
 
     return apiClient;
 }
@@ -91,8 +82,8 @@ async function fetchCrowdinStrings({ apiClient, project, isStringsProject, conta
  * @param {string[]} aiContext
  */
 function appendAiContext(context, aiContext) {
-    const aiContextSection = '\n\n✨ AI Context\n';
-    const endAiContextSection = '\n✨ 🔚';
+    const aiContextSection = `\n\n${AI_CONTEXT_SECTION_START}\n`;
+    const endAiContextSection = `\n${AI_CONTEXT_SECTION_END}`;
 
     const aiContextIndex = context.indexOf(aiContextSection);
     const endAiContextIndex = context.indexOf(endAiContextSection);
@@ -114,8 +105,8 @@ function removeAIContext(context) {
         return context;
     };
 
-    const aiContextSection = '\n\n✨ AI Context\n';
-    const endAiContextSection = '\n✨ 🔚';
+    const aiContextSection = `\n\n${AI_CONTEXT_SECTION_START}\n`;
+    const endAiContextSection = `\n${AI_CONTEXT_SECTION_END}`;
 
     const aiContextIndex = context?.indexOf(aiContextSection);
     const endAiContextIndex = context?.indexOf(endAiContextSection);
@@ -171,10 +162,30 @@ async function uploadWithoutAiStringsToCrowdin({ apiClient, project, strings }) 
     await apiClient.sourceStringsApi.stringBatchOperations(project, contextUpdateBatchRequest);
 }
 
+/**
+ * Get the user ID for crowdin.com
+ * 
+ * @param {object} apiClient
+ */
+async function getUserId(apiClient) {
+    try {
+        if (!apiClient.aiApi.organization) {    // we're in crowdin.com
+            const user = (await apiClient.usersApi.getAuthenticatedUser()).data;
+            return user.id;
+        }
+    } catch (e) {
+        console.error('Error: Invalid crowdin.com token');
+        process.exit(1);
+    }
+}
+
 export {
     getCrowdin,
     getCrowdinFiles,
     fetchCrowdinStrings,
     uploadAiStringsToCrowdin,
+    getUserId,
     uploadWithoutAiStringsToCrowdin,
+    AI_CONTEXT_SECTION_END,
+    AI_CONTEXT_SECTION_START,
 };

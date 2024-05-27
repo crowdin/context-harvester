@@ -1,5 +1,5 @@
 import inquirer from 'inquirer';
-import { getCrowdin } from './utils.js';
+import { getCrowdin, getUserId } from './utils.js';
 import chalk from 'chalk';
 import axios from 'axios';
 
@@ -25,7 +25,7 @@ async function configureCli(_name, commandOptions, _command) {
         validate: async (value, answers) => {
             try {
                 const apiClient = await getCrowdin({ token: value, org: answers.org });
-                await apiClient.projectsGroupsApi.withFetchAll(1).listProjects();   // get one project to test the token
+                await apiClient.projectsGroupsApi.withFetchAll(1).listProjects({ hasManagerAccess: 1 });   // get one project to test the token
 
                 return true;
             } catch (e) {
@@ -42,7 +42,7 @@ async function configureCli(_name, commandOptions, _command) {
         choices: async (answers) => {
             const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
 
-            if (apiClient.isEnterprise) {
+            if (apiClient.projectsGroupsApi.organization) {
                 return (await apiClient.projectsGroupsApi.withFetchAll().listProjects()).data.map(project => project.data).map(project => { return { name: project.name, value: project.id } });
             } else {
                 return (await apiClient.projectsGroupsApi.withFetchAll().listProjects()).data.map(project => project.data).map(project => { return { name: project.name, value: project.id } });
@@ -64,10 +64,10 @@ async function configureCli(_name, commandOptions, _command) {
             const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
 
             let aiProviders;
-            if (apiClient.isEnterprise) {
+            if (apiClient.aiApi.organization) {
                 aiProviders = (await apiClient.aiApi.withFetchAll().listAiOrganizationProviders()).data.map(provider => provider.data).filter(provider => provider.type == 'open_ai' && provider.isEnabled);
             } else {
-                aiProviders = (await apiClient.aiApi.withFetchAll().listAiUserProviders(apiClient.userId)).data.map(provider => provider.data).filter(provider => provider.type == 'open_ai' && provider.isEnabled);
+                aiProviders = (await apiClient.aiApi.withFetchAll().listAiUserProviders(await getUserId(apiClient))).data.map(provider => provider.data).filter(provider => provider.type == 'open_ai' && provider.isEnabled);
             }
 
             if (!aiProviders.length) {
@@ -98,7 +98,7 @@ async function configureCli(_name, commandOptions, _command) {
                 if (apiClient.aiApi.organization) {
                     models = (await apiClient.aiApi.withFetchAll().listAiOrganizationProviderModels(answers.crowdin_ai_id)).data.map(model => model.data);
                 } else {
-                    models = (await apiClient.aiApi.withFetchAll().listAiUserProviderModels(apiClient.userId, answers.crowdin_ai_id)).data.map(model => model.data);
+                    models = (await apiClient.aiApi.withFetchAll().listAiUserProviderModels(await getUserId(apiClient), answers.crowdin_ai_id)).data.map(model => model.data);
                 }
 
                 if (!models.length) {
