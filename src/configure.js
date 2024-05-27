@@ -3,7 +3,7 @@ import { getCrowdin } from './utils.js';
 import chalk from 'chalk';
 import axios from 'axios';
 
-async function configureCli(name, commandOptions, command) {
+async function configureCli(_name, commandOptions, _command) {
     const options = commandOptions.opts();
 
     const questions = [{
@@ -170,7 +170,9 @@ async function configureCli(name, commandOptions, command) {
     const answers = await inquirer.prompt(questions);
 
     console.log(chalk.hex('#FFA500').bold('\nYou can now execute the harvest command by running:\n'));
-    console.log(chalk.green(`crowdin-context-harvester `) +
+
+    console.log(
+        chalk.green(`crowdin-context-harvester `) +
         chalk.blue('harvest ') +
         (answers.org ? chalk.yellow('--org=') + chalk.white(`"${answers.org}" `) : '') +
         (answers.token ? chalk.yellow('--token=') + chalk.white(`"${answers.token}" `) : '') +
