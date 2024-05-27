@@ -9,14 +9,19 @@ import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import updateNotifier from 'update-notifier';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'))
+
+updateNotifier({ pkg: packageJson }).notify();
+
 const program = new Command();
 
 program
-    .version(JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')).version)
+    .version(packageJson.version)
     .name('crowdin-context-harvester')
     .description(`CLI tool for adding contextual information for Crowdin strings using AI. 
 
