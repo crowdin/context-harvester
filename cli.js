@@ -20,6 +20,11 @@ updateNotifier({ pkg: packageJson }).notify();
 
 const program = new Command();
 
+const tokenEnvName = 'CROWDIN_PERSONAL_TOKEN';
+const baseUrlEnvName = 'CROWDIN_BASE_URL';
+const projectEnvName = 'CROWDIN_PROJECT_ID';
+const openApiEnvName = 'OPENAI_KEY';
+
 program
     .version(packageJson.version)
     .name('crowdin-context-harvester')
@@ -36,21 +41,21 @@ Get started with the CLI by running the ${chalk.green('configure')} command.`);
 program
     .command('configure')
     .description('helps you find argument values for the harvest command')
-    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project, AI scopes)').env('CROWDIN_TOKEN'))
-    .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
-    .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. Setting OpenAI Key as an environment variable is recommended.').env('OPENAI_KEY'))
+    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project, AI scopes)').env(tokenEnvName))
+    .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
+    .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. Setting OpenAI Key as an environment variable is recommended.').env(openApiEnvName))
     .aliases(['init'])
     .action(configureCli);
 
 program
     .command('harvest')
     .description('find and add contextual information for translatable text in Crowdin project')
-    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project and AI scopes granted).').makeOptionMandatory().env('CROWDIN_TOKEN'))
-    .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme).').env('CROWDIN_ORG'))
-    .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
+    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project and AI scopes granted).').makeOptionMandatory().env(tokenEnvName))
+    .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
+    .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory().env(projectEnvName))
     .addOption(new Option('-a, --ai <provider>', 'AI provider (e.g., "crowdin" or "openai").').default('openai').makeOptionMandatory())
     .addOption(new Option('-ci, --crowdinAiId <id>', 'Crowdin AI provider ID (e.g. 12). This option is mandatory if "crowdin" is chosen as the AI provider.'))
-    .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. This option is mandatory if "openai" is chosen as the AI provider.').env('OPENAI_KEY'))
+    .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. This option is mandatory if "openai" is chosen as the AI provider.').env(openApiEnvName))
     .addOption(new Option('-m, --model <model>', 'AI model. Should accept at least 128,000 tokens context window and support tool calls.').default('gpt-4o').makeOptionMandatory())
     .addOption(new Option('-cp, --promptFile <path>', 'path to a file containing a custom prompt. Use "-" to read from STDIN. (optional)'))
     .addOption(new Option('-l, --localFiles <pattern>', 'local file names pattern (valid glob pattern, multiple patterns are possible, separated by ";".)').default('**/*.*').makeOptionMandatory())
@@ -78,9 +83,9 @@ Examples:
 program
     .command('upload')
     .description('upload the reviewed context to Crowdin project')
-    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project scope)').makeOptionMandatory().env('CROWDIN_TOKEN'))
-    .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
-    .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
+    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project scope)').makeOptionMandatory().env(tokenEnvName))
+    .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
+    .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory().env(projectEnvName))
     .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file with reviewed context').default('crowdin-context.csv').makeOptionMandatory())
     .aliases(['add', 'sync'])
     .addHelpText(
@@ -96,9 +101,9 @@ Examples:
 program
     .command('reset')
     .description('remove previously written AI context from Crowdin project')
-    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project scope)').makeOptionMandatory().env('CROWDIN_TOKEN'))
-    .addOption(new Option('-o, --org <organization>', 'Crowdin organization (e.g., acme)').env('CROWDIN_ORG'))
-    .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory())
+    .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project scope)').makeOptionMandatory().env(tokenEnvName))
+    .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
+    .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory().env(projectEnvName))
     .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default('**/*.*'))
     .aliases(['remove', 'clean', 'delete'])
     .addHelpText(
