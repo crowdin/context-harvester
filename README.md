@@ -36,8 +36,9 @@ npm i -g crowdin-context-harvester
 
 Set the following ENV variables for authentication:
 
- - `CROWDIN_TOKEN` should be granted for projects and AI scopes;
- - `CROWDIN_ORG`  - for Crowdin Enterprise only. Example value: 'acme';
+ - `CROWDIN_PERSONAL_TOKEN` should be granted for projects and AI scopes;
+ - `CROWDIN_BASE_URL`  - for Crowdin Enterprise only, should follow this format: `https://<org-name>.api.crowdin.com`;
+ - `CROWDIN_PROJECT_ID` - Crowdin project id;
  - `OPENAI_KEY` - when using OpenAI for AI context extraction;
   
 ### Initial Setup
@@ -57,7 +58,7 @@ After configuration, your command might look like this:
 ```sh
 crowdin-context-harvester harvest\
     --token="<your-crowdin-token>"\
-    --org="acme"\ 
+    --url="https://acme.api.crowdin.com"\ 
     --project=<project-id>\
     --ai="openai"\
     --openAiKey="<your-openai-token>"\
@@ -69,7 +70,7 @@ crowdin-context-harvester harvest\
     --output="csv"
 ```
 
-__Note:__ The `org` argument is required for Crowdin Enterprise only. Passing all credentials as environment variables is recommended.
+__Note:__ The `url` argument is required for Crowdin Enterprise only. Passing all credentials as environment variables is recommended.
 
 When this command is executed, the CLI will pull strings from all Crowdin files that match the `--crowdinFiles` glob pattern, then go through all files that match `--localFiles`, check if strings from Crowdin files are present in every file on your computer (because of the `--screen="keys"`), and if they are, both matching strings and the code files will be sent to LLM with a prompt to extract contextual information, information about how these strings are used in the code, how they appear to the end user in the UI, etc.
 

@@ -1,3 +1,4 @@
+//@ts-check
 import inquirer from 'inquirer';
 import { getCrowdin, getUserId } from './utils.js';
 import chalk from 'chalk';
@@ -11,20 +12,18 @@ async function configureCli(_name, commandOptions, _command) {
         name: 'crowdin',
         message: 'What Crowdin product do you use?',
         choices: [{ name: 'Crowdin Enterprise', value: 'enterprise' }, { name: 'Crowdin.com', value: 'crowdin' }]
-    }, {    // only ask for org if enterprise and not provided as an option
+    }, {    // only ask for url if enterprise and not provided as an option
         type: 'input',
-        name: 'org',
-        message: 'Crowdin organization (e.g., acme):',
-        when: function (answers) {
-            return (answers.crowdin === 'enterprise' && !options.org);
-        }
+        name: 'url',
+        message: 'Crowdin organization url (for enterprise https://<org-name>.api.crowdin.com):',
+        when: (answers) => (answers.crowdin === 'enterprise' && !options.url),
     }, {    // only ask for token if not provided as an option
         type: 'input',
         name: 'token',
         message: 'Crowdin Personal API token (with Project, AI scopes):',
         validate: async (value, answers) => {
             try {
-                const apiClient = await getCrowdin({ token: value, org: answers.org });
+                const apiClient = await getCrowdin({ token: value, url: answers.url });
                 await apiClient.projectsGroupsApi.withFetchAll(1).listProjects({ hasManagerAccess: 1 });   // get one project to test the token
 
                 return true;
@@ -32,15 +31,13 @@ async function configureCli(_name, commandOptions, _command) {
                 return `Error: ${e.message}`;
             }
         },
-        when: function (answers) {
-            return !options.token;  // only ask for token if not provided as an option
-        }
+        when: () => !options.token, // only ask for token if not provided as an option
     }, {
         type: 'list',
         name: 'project',
         message: 'Crowdin project:',
         choices: async (answers) => {
-            const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
+            const apiClient = await getCrowdin({ token: answers.token || options.token, url: answers.url || options.url });
 
             if (apiClient.projectsGroupsApi.organization) {
                 return (await apiClient.projectsGroupsApi.withFetchAll().listProjects()).data.map(project => project.data).map(project => { return { name: project.name, value: project.id } });
@@ -52,16 +49,14 @@ async function configureCli(_name, commandOptions, _command) {
         type: 'list',
         name: 'ai',
         message: 'AI provider:',
-        choices: [{ name: 'OpenAI', value: 'openai' }, { name: 'Crowdin AI Provider', value: 'crowdin' }]
+        choices: [{ name: 'OpenAI', value: 'openai' }, { name: 'Crowdin AI Provider', value: 'crowdin' }],
     }, {
         type: 'list',
         name: 'crowdin_ai_id',
         message: 'Crowdin AI provider (you should have the OpenAI provider configured in Crowdin):',
-        when: function (answers) {
-            return answers.ai === 'crowdin';
-        },
+        when: (answers) => answers.ai === 'crowdin',
         choices: async (answers) => {
-            const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
+            const apiClient = await getCrowdin({ token: answers.token || options.token, url: answers.url || options.url });
 
             let aiProviders;
             if (apiClient.aiApi.organization) {
@@ -81,9 +76,7 @@ async function configureCli(_name, commandOptions, _command) {
         type: 'input',
         name: 'openai_key',
         message: 'OpenAI key:',
-        when: function (answers) {
-            return answers.ai === 'openai' && !options.openAiKey;
-        }
+        when: (answers) => answers.ai === 'openai' && !options.openAiKey,
     }, {
         type: 'list',
         name: 'model',
@@ -91,7 +84,7 @@ async function configureCli(_name, commandOptions, _command) {
         default: 'gpt-4o',
         choices: async (answers) => {
             if (answers.ai === 'crowdin') {
-                const apiClient = await getCrowdin({ token: answers.token || options.token, org: answers.org || options.org });
+                const apiClient = await getCrowdin({ token: answers.token || options.token, url: answers.url || options.url });
 
                 let models = [];
 
@@ -162,9 +155,7 @@ async function configureCli(_name, commandOptions, _command) {
         name: 'csvFile',
         message: 'Output CSV file (file name or path):',
         default: 'crowdin-context.csv',
-        when: function (answers) {
-            return answers.output === 'csv';
-        }
+        when: (answers) => answers.output === 'csv',
     }];
 
     const answers = await inquirer.prompt(questions);
@@ -174,7 +165,7 @@ async function configureCli(_name, commandOptions, _command) {
     console.log(
         chalk.green(`crowdin-context-harvester `) +
         chalk.blue('harvest ') +
-        (answers.org ? chalk.yellow('--org=') + chalk.white(`"${answers.org}" `) : '') +
+        (answers.url ? chalk.yellow('--url=') + chalk.white(`"${answers.url}" `) : '') +
         (answers.token ? chalk.yellow('--token=') + chalk.white(`"${answers.token}" `) : '') +
         chalk.yellow('--project=') + chalk.white(`${answers.project} `) +
         chalk.yellow('--ai=') + chalk.white(`"${answers.ai}" `) +

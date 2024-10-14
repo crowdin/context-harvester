@@ -11,10 +11,21 @@ async function getCrowdin(options) {
     //@ts-ignore
     const apiClient = new crowdin.default({
         token: options.token,
-        ...(options.org && { organization: options.org }),
+        ...(options.url && { baseUrl: normalizeUrl(options.url) }),
     });
 
     return apiClient;
+}
+
+/**
+ * @param {string} url 
+ */
+function normalizeUrl(url) {
+    if (url.endsWith('/')) {
+        return `${url}api/v2`;
+    } else {
+        return `${url}/api/v2`;
+    }
 }
 
 /**
