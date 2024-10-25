@@ -26,28 +26,20 @@ const AI_TOOLS = [{
     type: "function",
     function: {
         name: "setContext",
-        description: "Always use this function to return the context.",
+        description: "Function to set string the context.",
         parameters: {
             type: "object",
             properties: {
-                contexts: {
-                    type: "array",
-                    items: {
-                        type: "object",
-                        properties: {
-                            id: {
-                                type: "number",
-                                description: "Key ID of the string. This is the ID of the string that you are providing context for."
-                            },
-                            context: {
-                                type: "string",
-                                description: "Context of the string. This is the context that you are providing for the string."
-                            }
-                        },
-                        required: ["id", "context"]
-                    },
+                id: {
+                    type: "number",
+                    description: "Key ID of the string. This is the ID of the string that you are providing context for."
+                },
+                context: {
+                    type: "string",
+                    description: "Context of the string. This is the context that you are providing for the string."
                 }
-            }
+            },
+            required: ["id", "context"],
         }
     }
 }];
@@ -420,7 +412,9 @@ async function executePrompt({ apiClient, options, messages }) {
         const contexts = [];
         (aiResponse?.data?.choices?.[0]?.message?.tool_calls || []).forEach(toolCall => {
             const args = toolCall?.function?.arguments;
-            contexts.push(...(args ? JSON.parse(args).contexts : []));
+            if (args) {
+                contexts.push(JSON.parse(args));
+            }
         })
 
         return { contexts };
@@ -439,15 +433,11 @@ async function executePrompt({ apiClient, options, messages }) {
         model: client(options.ai === 'azure' ? options.azureDeploymentName : options.model),
         tools: {
             setContext: tool({
-                description: 'Always use this function to return the context.',
+                description: 'Function to set string context.',
                 parameters: z.object({
-                    contexts: z.array(
-                      z.object({
-                          id: z.number().describe('Key ID of the string. This is the ID of the string that you are providing context for.'),
-                          context: z.string().describe('Context of the string. This is the context that you are providing for the string.'),
-                          file: z.string().describe('File where string was found'),
-                      })
-                    ).describe('Array of contexts to set'),
+                    id: z.number().describe('String ID'),
+                    context: z.string().describe('Context for the string'),
+                    file: z.any().describe('File where string context was found'),
                 }),
             }),
         },
@@ -458,9 +448,7 @@ async function executePrompt({ apiClient, options, messages }) {
     let contexts = [];
 
     (result?.toolCalls || []).forEach(toolCall => {
-        contexts.push(
-          ...toolCall.args.contexts,
-        );
+        contexts.push(toolCall.args);
     })
 
     return { contexts };
