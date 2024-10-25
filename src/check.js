@@ -20,38 +20,42 @@ import {z} from 'zod';
 
 // tools that are used in the AI model. this way we get more predictable results from the model
 const AI_TOOLS = [{
-    type: "function",
-    function: {
-        name: "getMoreContext",
-        description: "Use this function to get more context for string.",
-        parameters: {
-            type: "object",
-            properties: {
-                strings: {
-                    type: "array",
-                    items: {
-                        type: "object",
-                        properties: {
-                            id: {
-                                type: "number",
-                                description: "This is the ID of the string that have not sufficient context."
-                            },
-                            error: {
-                                type: "string",
-                                description: "Error that describe problems with provided context."
-                            }
-                        },
-                        required: ["id", "error"]
-                    },
-                }
+    "name": "gradeStringContext",
+    "description": "Use this function to grade string context.",
+    "strict": false,
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "number",
+                "description": "This is the ID of the string"
+            },
+            "sufficient": {
+                "type": "boolean",
+                "description": "Property that indicate if string context is sufficient for high quality translation"
+            },
+            "error": {
+                "type": "string",
+                "description": "Error that describe problems with provided context"
             }
-        }
+        },
+        "required": [
+            "id",
+            "sufficient",
+            "error"
+        ]
     }
 }];
 
-const DEFAULT_PROMPT = `You are working on a list of strings. Each strings has text and context. Context is useful information that should be used to provide high-quality translation. 
+const DEFAULT_PROMPT = `You should help translator to grade strings' contexts.
 
-Check if each string has enough information to provide unequivocal high-quality translation for each project target language. Use getMoreContext function to get more information about string if needed for unequivocal high-quality translation. Describe what information can be useful for translation and what problems can emerge with translation.
+For each string:
+- analyse string text and context;
+- grade string context if it's sufficient for translation.
+
+To be sufficient context should:
+- help translator to understand exact meaning of the string text;
+- help translator to provide high quality translation of string for each project target language.
 
 Project target languages: %targetLanguages%.
 
@@ -284,7 +288,9 @@ async function executePrompt({ apiClient, options, messages }) {
         const errors = [];
         (aiResponse?.data?.choices?.[0]?.message?.tool_calls || []).forEach(toolCall => {
             const args = toolCall?.function?.arguments;
-            errors.push(...(args ? JSON.parse(args) : []));
+            if (args) {
+                errors.push(JSON.parse(args));
+            }
         })
 
         return { errors };
@@ -302,15 +308,12 @@ async function executePrompt({ apiClient, options, messages }) {
     const result = await generateText({
         model: client(options.ai === 'azure' ? options.azureDeploymentName : options.model),
         tools: {
-            getMoreContext: tool({
-                description: 'Use this function to get more context for string.',
+            gradeStringContext: tool({
+                description: 'Use this function to grade string context.',
                 parameters: z.object({
-                    strings: z.array(
-                      z.object({
-                          id: z.number().describe('This is the ID of the string that have not sufficient context.'),
-                          error: z.string().describe('Error that describe problems with provided context.'),
-                      })
-                    ).describe('Array of errors to set'),
+                    id: z.number().describe('This is the ID of the string'),
+                    sufficient: z.boolean().describe('Property that indicate if string context is sufficient for high quality translation'),
+                    error: z.string().describe('Error that describe problems with provided context'),
                 }),
             }),
         },
@@ -322,7 +325,7 @@ async function executePrompt({ apiClient, options, messages }) {
 
     (result?.toolCalls || []).forEach(toolCall => {
       errors.push(
-        ...toolCall.args.strings,
+        toolCall.args
       );
     })
 
