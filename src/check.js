@@ -22,23 +22,23 @@ import {z} from 'zod';
 const AI_TOOLS = [{
     type: "function",
     function: {
-        name: "setErrors",
-        description: "Always use this function to set errors for strings.",
+        name: "getMoreContext",
+        description: "Use this function to get more context for string.",
         parameters: {
             type: "object",
             properties: {
-                errors: {
+                strings: {
                     type: "array",
                     items: {
                         type: "object",
                         properties: {
                             id: {
                                 type: "number",
-                                description: "This is the ID of the string that you are providing errors for."
+                                description: "This is the ID of the string that have not sufficient context."
                             },
                             error: {
                                 type: "string",
-                                description: "This is the error that you are providing for the string."
+                                description: "Error that describe problems with provided context."
                             }
                         },
                         required: ["id", "error"]
@@ -49,19 +49,13 @@ const AI_TOOLS = [{
     }
 }];
 
-const DEFAULT_PROMPT = `Please analyse each string text and context.
+const DEFAULT_PROMPT = `You are working on a list of strings. Each strings has text and context. Context is useful information that should be used to provide high-quality translation. 
 
-Use setErrors tool to add error to a string.
-
-For each string check if string text can be translated with high quality using provided context. Add error to a string only if:
-- context was not provided and string text can have different translations on target language;
-- context was provided but it's not enough to provide high quality translation for target language.
-Don't add error to a string if it can be translated unequivocally or when provided context is sufficient for accurate translation.
-Describe possible errors for each project target language. Skip languages without errors.
+Check if each string has enough information to provide unequivocal high-quality translation for each project target language. Use getMoreContext function to get more information about string if needed for unequivocal high-quality translation. Describe what information can be useful for translation and what problems can emerge with translation.
 
 Project target languages: %targetLanguages%.
 
-Strings (serialized as JSON):
+Strings (serialised as JSON):
 %strings%
 `;
 
@@ -252,7 +246,7 @@ function buildMessages({ prompt, strings, targetLanguageNames }) {
     return [
         {
             role: 'system',
-            content: 'You are helpful translator\'s assistant. You should help professional translator to find strings that are hard to translate because they can have different translations in target language without context.',
+            content: 'You are helpful translator\'s assistant.',
         },
         {
             role: 'user',
@@ -308,13 +302,13 @@ async function executePrompt({ apiClient, options, messages }) {
     const result = await generateText({
         model: client(options.ai === 'azure' ? options.azureDeploymentName : options.model),
         tools: {
-            setErrors: tool({
-                description: 'Always use this function to set errors for strings.',
+            getMoreContext: tool({
+                description: 'Use this function to get more context for string.',
                 parameters: z.object({
-                    errors: z.array(
+                    strings: z.array(
                       z.object({
-                          id: z.number().describe('This is the ID of the string that you are providing errors for.'),
-                          error: z.string().describe('This is the error that you are providing for the string.'),
+                          id: z.number().describe('This is the ID of the string that have not sufficient context.'),
+                          error: z.string().describe('Error that describe problems with provided context.'),
                       })
                     ).describe('Array of errors to set'),
                 }),
@@ -328,7 +322,7 @@ async function executePrompt({ apiClient, options, messages }) {
 
     (result?.toolCalls || []).forEach(toolCall => {
       errors.push(
-        ...toolCall.args.errors,
+        ...toolCall.args.strings,
       );
     })
 
