@@ -47,7 +47,7 @@ const AI_TOOLS = [{
 const DEFAULT_PROMPT = `Please, extract the context from the code for the following strings.
 
 - Context is useful information for linguists or an AI translating these texts about how the text is used in the project they are localizing or when it appears in the UI.
-- Provide context only if exact matches of the string or string's key are found in the code. If no matches are found set context equal to the ''.
+- Provide context for string only if exact match of the string's text or string's key are found in the code.
 - To set context for string call the setContext tool.
 
 Strings:

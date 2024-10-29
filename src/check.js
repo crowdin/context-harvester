@@ -47,15 +47,15 @@ const AI_TOOLS = [{
     }
 }];
 
-const DEFAULT_PROMPT = `You should help translator to grade strings' contexts.
+const DEFAULT_PROMPT = `You should help the translator to grade the context of strings.
+
+To be sufficient, the context should:
+- describe exact meaning of the string's text, without ambiguity;
+- help the translator to provide high quality translation of the string's text for each project target language.
 
 For each string:
-- analyse string text and context;
-- grade string context if it's sufficient for translation.
-
-To be sufficient context should:
-- help translator to understand exact meaning of the string text;
-- help translator to provide high quality translation of string for each project target language.
+- analyze string text and context;
+- grade string context.
 
 Project target languages: %targetLanguages%.
 
