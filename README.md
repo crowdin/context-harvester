@@ -135,6 +135,7 @@ Code:
 ```
 
 ### AI Providers
+
 The CLI currently supports OpenAI, Google Gemini (Vertex AI), MS Azure OpenAI, Anthropic, and Mistral as AI providers. Provide required credentials or a Crowdin provider ID for context extraction.
 Consuming AI providers through Crowdin is useful for a quick start. Note, however, that in this case the code is uploaded to Crowdin before it is sent to the AI provider. 
 
@@ -146,8 +147,30 @@ For large projects, use the `--screen` option to filter keys or texts before sen
 crowdin-context-harvester harvest ... arguments ... --screen="keys"
 ```
 
+### Checking Context
+
+The `check` command is designed to assess whether the strings in your Crowdin project have sufficient context for accurate translation. This process helps identify potential problems that may arise during translation, and ensures that translators have all the information they need to produce high-quality translations:
+
+```sh
+crowdin-context-harvester check \
+    --token="<your-crowdin-token>" \
+    --url="https://acme.api.crowdin.com" \
+    --project=<project-id> \
+    --ai="openai" \
+    --openAiKey="<your-openai-token>" \
+    --model="gpt-4o" \
+    --contextWindowSize="128000" \
+    --maxOutputTokens="16384" \
+    --crowdinFiles="**/*.*" \
+    --croql="<your-croql-query>" \
+    --output="csv" \
+    --csvFile="<path-to-your-csv-file>"
+```
+
+Customize options based on your specific needs and the AI provider you choose.
 
 ### Removing AI Context
+
 To remove previously added AI context, use the reset command:
 
 ```sh
@@ -155,6 +178,7 @@ crowdin-context-harvester reset
 ```
 
 ## About Crowdin
+
 Crowdin is a platform that helps you manage and translate content into different languages. Integrate Crowdin with your repo, CMS, or other systems. Source content is always up to date for your translators, and translated content is returned automatically.
 
 ## License
