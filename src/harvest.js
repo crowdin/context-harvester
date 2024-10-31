@@ -1,56 +1,54 @@
 //@ts-check
-import axios from 'axios';
 import chalk from 'chalk';
 import cliWidth from 'cli-width';
 import fs from 'fs';
 import { globSync } from 'glob';
-import { encode } from 'gpt-tokenizer';
 import { Parser } from 'json2csv';
 import ora from 'ora';
 import { table } from 'table';
-import { fetchCrowdinStrings, getCrowdin, getCrowdinFiles, uploadAiStringsToCrowdin, getUserId } from './utils.js';
-
-const AI_MODEL_CONTEXT_WINDOW = 128000; // the context window size of the recommended AI model
+import {generateText, tool} from "ai";
+import {z} from 'zod';
+import {
+    getCrowdin,
+    uploadAiStringsToCrowdin,
+    getUserId,
+    validateAiProviderFields,
+    getCrowdinStrings,
+    getTokenizer,
+    getPrompt,
+    getModelLimits,
+    stringifyStrings,
+    getStringsChunks, getAiClient
+} from './utils.js';
 
 // tools that are used in the AI model. this way we get more predictable results from the model
 const AI_TOOLS = [{
     type: "function",
     function: {
         name: "setContext",
-        description: "Always use this function to return the context.",
+        description: "Function to set string the context.",
         parameters: {
             type: "object",
             properties: {
-                contexts: {
-                    type: "array",
-                    items: {
-                        type: "object",
-                        properties: {
-                            id: {
-                                type: "number",
-                                description: "Key ID of the string. This is the ID of the string that you are providing context for."
-                            },
-                            context: {
-                                type: "string",
-                                description: "Context of the string. This is the context that you are providing for the string."
-                            }
-                        },
-                        required: ["id", "context"]
-                    },
+                id: {
+                    type: "number",
+                    description: "Key ID of the string. This is the ID of the string that you are providing context for."
+                },
+                context: {
+                    type: "string",
+                    description: "Context of the string. This is the context that you are providing for the string."
                 }
-            }
+            },
+            required: ["id", "context"],
         }
     }
 }];
 
-const DEFAULT_PROMPT = `Extract the context for the following UI labels.
+const DEFAULT_PROMPT = `Please, extract the context from the code for the following strings.
 
 - Context is useful information for linguists or an AI translating these texts about how the text is used in the project they are localizing or when it appears in the UI.
-- Only provide context if exact matches of the strings or keys are found in the code.
-- If no matches are found, do not provide context.
-- Only return context if you find a key or text usage in the code.
-- Any context provided should start with 'Used as...' or 'Appears as...'.
-- Always call the setContext tool to return the context.
+- Provide context for string only if exact match of the string's text or string's key are found in the code.
+- To set context for string call the setContext tool.
 
 Strings:
 %strings%
@@ -59,15 +57,6 @@ Code:
 %code%`;
 
 const spinner = ora();
-
-/**
- * Stringifies chat messages and encodes them into tokens to measure the length
- * 
- * @param {Array<object>} messages
- */
-function encodeChat(messages) {
-    return encode(messages.map(message => message.content).join('\n\n'));
-}
 
 /**
  * Prints the strings that would be updated in a dry run
@@ -171,29 +160,14 @@ async function appendContext(strings, stringsContext) {
     for (const context of stringsContext?.contexts || []) {
         const string = strings.find((s) => s.id === context.id);
 
-        if (string) {
+        if (string && context?.context) {
             if (!string.aiContext) {
                 string.aiContext = [];
             }
 
-            context?.context && string.aiContext.push(context.context);
+            string.aiContext.push(context.context);
         }
     }
-}
-
-/**
- * Used to split strings into smaller chunks if user has many strings in their Crowdin project
- * 
- * @param {Array<object>} array 
- * @param {number} maxSize 
- * @returns 
- */
-function splitArray(array, maxSize) {
-    let result = [];
-    for (let i = 0; i < array.length; i += maxSize) {
-        result.push(array.slice(i, i + maxSize));
-    }
-    return result;
 }
 
 /**
@@ -207,7 +181,7 @@ function splitArray(array, maxSize) {
 function filterStrings(crowdinStrings, content, screen) {
     return crowdinStrings.filter((crowdinString) => {
         if (screen === 'keys') {
-            return content.includes(crowdinString.key);
+            return content.includes(crowdinString.identifier);
         } else {
             // Remove actual newline characters and literal \r or \n strings from content and string text
             // Because new lines in the code may differ from the new lines in the Crowdin project
@@ -221,129 +195,192 @@ function filterStrings(crowdinStrings, content, screen) {
 }
 
 /**
+ * Stringify files
+ *
+ * @param {Array<object>} files
+ */
+function stringifyFiles({ files}) {
+    return files.join('');
+}
+
+/**
  * Chunks the strings and code into smaller parts if needed and sends them to the AI model
  * 
  * @param {object} param0 
  * @param {object} param0.apiClient
  * @param {object} param0.options
- * @param {string} param0.content
  * @param {Array<object>} param0.crowdinStrings
- * @param {string} param0.fileName
+ * @param {Array<object>} param0.localFiles
  */
-async function chunkAndExtract({ apiClient, options, content, crowdinStrings, fileName }) {
-    spinner.start(`Extracting context from ${chalk.green(fileName)}...`);
+async function chunkAndExtract({ apiClient, options, crowdinStrings, localFiles }) {
+    // for every local file that matches the glob pattern provided by the user
+    spinner.start('Collecting files');
+    let filesContent = [];
 
-    // filter out strings that are not present in the code if the user wants to screen them
-    if (options.screen === 'keys' || options.screen === 'texts') {
-        crowdinStrings = filterStrings(crowdinStrings, content, options.screen);
-    }
-
-    // if there are no strings left after screening, we return an empty context
-    if (!crowdinStrings.length) {
+    if (!localFiles.length) {
         spinner.succeed();
-        console.log(`${chalk.gray('  No translatable strings found in the code.')}`)
+        console.log(`${chalk.gray('  No files found.')}`)
         return { contexts: [] };
     }
 
-    let result = [];
-    let chunks = [crowdinStrings];
-    let splitCount = 0;
-
-    let fullMessage = buildMessages({ options, crowdinStrings: chunks.flat(), content });
-
-    // we first try to split the strings into smaller chunks to fit into the AI model context window. 
-    // splitting the code is less desirable
-    while (encodeChat(fullMessage).length > AI_MODEL_CONTEXT_WINDOW && splitCount < 10) {
-        chunks = chunks.flatMap(chunk => splitArray(chunk, Math.ceil(chunk.length / 2)));
-        splitCount++;
-    }
-
-    fullMessage = buildMessages({ options, crowdinStrings: chunks.flat(), content });
-
-    // if the strings + code are still too long, we split the code into smaller chunks
-    if (encodeChat(fullMessage).length > AI_MODEL_CONTEXT_WINDOW) {
-        const contentChunks = content.match(new RegExp('.{1,' + Math.ceil(content.length / 2) + '}', 'g')) || '';
-
-        for (let i = 0; i < chunks.length; i++) {
-            for (let j = 0; j < contentChunks.length; j++) {
-                spinner.start(`Chunk ${i + 1}/${chunks.length} and content chunk ${j + 1}/${contentChunks.length}...`);
-                const newAiContext = await executePrompt({
-                    apiClient,
-                    options,
-                    messages: buildMessages({ options, crowdinStrings: chunks[i], content: contentChunks[j] }),
-                });
-                result.push(newAiContext.contexts);
-                spinner.succeed();
-            }
-        }
-    } else {
-        // if chunked strings fit into the AI model with full code, we send every strings chunk with the full code
-        for (let chunk of chunks) {
-            chunks.length > 1 && spinner.start(`Chunk ${chunks.indexOf(chunk) + 1}/${chunks.length}...`);
-            const newAiContext = await executePrompt({
-                apiClient,
-                options,
-                messages: buildMessages({ options, crowdinStrings: chunk, content }),
-            });
-            result.push(newAiContext.contexts);
-            chunks.length > 1 && spinner.succeed();
+    for (const localFile of localFiles) {
+        let content;
+        try {
+            content = fs.readFileSync(localFile, 'utf8'); // get the content of the code file
+            content = `Content of ${localFile}:\n\`\`\`\n${content}\n\`\`\`\n\n`;
+            filesContent[localFile] = content;
+        } catch (error) {
+            console.error(`\nError reading file ${localFile}: ${error}. Proceeding with other files...`);
         }
     }
 
     spinner.succeed();
 
-    console.log(`  ${chalk.green(crowdinStrings.length)} strings found in the code. New context found for ${chalk.green(result.flat().length)} strings`);
+    const tokenizer = getTokenizer(options.ai, options.model);
+    const prompt = getPrompt({ options, defaultPrompt: DEFAULT_PROMPT });
 
-    return {
-        contexts: result.flat()
-    };
+    const modeLimits = getModelLimits(options);
+    const stringsChunkLimit = modeLimits.output / 4; // we assume that context will be longer than strings
+    const filesChunkLimit = modeLimits.input - modeLimits.output - stringsChunkLimit - tokenizer.encode(prompt).length; // leave full output for context
+
+    const stringsChunks = getStringsChunks({
+        crowdinStrings,
+        tokenizer,
+        chunkLimit: stringsChunkLimit
+    });
+    const filesChunks = [];
+
+    while(Object.keys(filesContent).length) {
+        let chunk = {};
+        for (let fileKey of Object.keys(filesContent)) {
+            // handle large files: split them to fit in context window
+            if (tokenizer.encode(filesContent[fileKey]).length > filesChunkLimit) {
+                let largeFileParts = [filesContent[fileKey].replace(`Content of ${fileKey}:`, '')];
+                const header = `Part of ${fileKey} content:\n\`\`\`\n`
+
+                const maxNumbersOfSplit = 10;
+                let splitsCount = 0;
+
+                try {
+                    while (
+                      splitsCount < maxNumbersOfSplit
+                      && tokenizer.encode(
+                        stringifyFiles({
+                            files: [header + largeFileParts[0]]
+                        })
+                      ).length > filesChunkLimit
+                      ) {
+                        largeFileParts = largeFileParts.reduce((acc, curr) => {
+                            const chunks = curr.match(new RegExp('(.|[\r\n]){1,' + Math.ceil(curr.length / 2) + '}', 'g'));
+                            acc.push(...chunks);
+                            return acc;
+                        }, []);
+                        splitsCount++;
+                    }
+
+                    if (splitsCount >= maxNumbersOfSplit) {
+                        console.log(`${chalk.gray(`  ${fileKey} is too large to be processed`)}`);
+                    } else {
+                        for(let i = 0; i < largeFileParts.length; i++) {
+                            filesContent[`${fileKey}-${i}`] = largeFileParts[i];
+                        }
+                    }
+                } catch (e) {
+                    console.log(`${chalk.gray(`  ${fileKey} is too large to be processed`)}`);
+                }
+
+                delete filesContent[fileKey];
+                continue;
+            }
+
+            chunk[fileKey] = filesContent[fileKey];
+            if (tokenizer.encode(stringifyFiles({ files: Object.values(chunk) })).length > filesChunkLimit) {
+                delete chunk[fileKey];
+                filesChunks.push(Object.values(chunk));
+
+                const chunkIdentifiers = Object.keys(chunk);
+                chunkIdentifiers.forEach(identifier => {
+                    delete filesContent[identifier];
+                });
+                break;
+            }
+        }
+
+        if (Object.keys(chunk).length === Object.keys(filesContent).length) {
+            filesChunks.push(Object.values(chunk));
+            filesContent = [];
+        }
+    }
+
+    const totalChunks = stringsChunks.length * filesChunks.length;
+    let chunkNumber = 1;
+    let contexts = [];
+
+    for (let stringsChunk of stringsChunks) {
+        for (const filesChunk of filesChunks) {
+            spinner.start(`Processing chunk ${chunkNumber} of ${totalChunks}`);
+
+            let stringsInFiles = {...stringsChunk};
+
+            // filter out strings that are not present in the code if the user wants to screen them
+            if (options.screen === 'keys' || options.screen === 'texts') {
+                stringsInFiles = filterStrings(Object.values(stringsInFiles), stringifyFiles({ files: filesChunk }), options.screen);
+                stringsInFiles = stringsInFiles.reduce((acc, curr) => {
+                    acc[curr.id] = curr;
+                }, {});
+            }
+            // if there are no strings left after screening, we return an empty context
+            if (!Object.keys(stringsInFiles).length) {
+                chunkNumber++;
+                spinner.succeed();
+                continue;
+            }
+
+            try {
+                const messages = buildMessages({ prompt, strings: stringsInFiles, files: filesChunk });
+
+                const response = await executePrompt({
+                    apiClient,
+                    messages,
+                    options,
+                });
+
+                contexts.push(...(response?.contexts || []));
+                spinner.succeed();
+            } catch (e) {
+                spinner.fail();
+                console.log(`\n${e?.response?.data?.error?.message || e}`);
+            }
+
+            chunkNumber++;
+        }
+    }
+
+    return { contexts };
 }
 
 /**
  * Builds the chat messages for the AI model
  * 
  * @param {object} param0 
- * @param {object} param0.options
- * @param {Array<object>} param0.crowdinStrings
- * @param {string} param0.content
+ * @param {object} param0.prompt
+ * @param {object} param0.strings
+ * @param {Array<object>} param0.files
  */
-function buildMessages({ options, crowdinStrings, content }) {
-    const strings = JSON.stringify(crowdinStrings, null, 2);
-    return [{
-        role: 'system',
-        content: 'You are a helpful assistant who extracts context from code for UI labels.',
-    },
-    {
-        role: 'user',
-        content: getPrompt({ options, strings, content }),
-    }];
-}
+function buildMessages({ prompt, strings, files }) {
+    let builtPrompt = prompt.replace('%strings%', stringifyStrings({ strings }));
+    builtPrompt = builtPrompt.replace('%code%', stringifyFiles({ files }));
 
-/**
- * Returns the prompt for the AI model, either default or provided by the user
- * 
- * @param {object} param0 
- * @param {object} param0.options 
- * @param {string} param0.strings 
- * @param {string} param0.content
- */
-function getPrompt({ options, strings, content }) {
-    let prompt = DEFAULT_PROMPT;
-
-    if (options.promptFile) {
-        try {
-            if (options.promptFile === '-') {
-                prompt = fs.readFileSync(0, 'utf8');
-            } else {
-                prompt = fs.readFileSync(options.promptFile, 'utf8');
-            }
-        } catch (error) {
-            console.error(`Error reading prompt file: ${error}`);
-            process.exit(1);
+    return [
+        {
+            role: 'system',
+            content: 'Please act as a helpful translator assistant. You will help translator to collect useful information about strings to help better understand string\'s context',
+        },
+        {
+            role: 'user',
+            content: builtPrompt,
         }
-    }
-
-    return prompt.replace('%strings%', strings).replace('%code%', content);
+    ];
 }
 
 /**
@@ -372,26 +409,49 @@ async function executePrompt({ apiClient, options, messages }) {
             }));
         }
 
-        const functionArguments = aiResponse?.data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-        return functionArguments ? JSON.parse(functionArguments) : [];
-    } else if (options.ai === 'openai') {
-        const openAiResponse = (await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: options.model,
-            tools: AI_TOOLS,
-            messages,
-        }, {
-            headers: {
-                'Authorization': `Bearer ${options.openAiKey}`,
-                'Content-Type': 'application/json'
+        const contexts = [];
+        (aiResponse?.data?.choices?.[0]?.message?.tool_calls || []).forEach(toolCall => {
+            const args = toolCall?.function?.arguments;
+            if (args) {
+                contexts.push(JSON.parse(args));
             }
-        }));
+        })
 
-        const functionArguments = openAiResponse?.data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-        return functionArguments ? JSON.parse(functionArguments) : [];
-    } else {
+        return { contexts };
+    }
+
+    let client;
+    try {
+        client = getAiClient(options);
+    } catch(e) {
         console.error('\n\nInvalid AI provider');
+        console.error(e);
         process.exit(1);
     }
+
+    const result = await generateText({
+        model: client(options.ai === 'azure' ? options.azureDeploymentName : options.model),
+        tools: {
+            setContext: tool({
+                description: 'Function to set string context.',
+                parameters: z.object({
+                    id: z.number().describe('String ID'),
+                    context: z.string().describe('Context for the string'),
+                    file: z.any().describe('File where string context was found'),
+                }),
+            }),
+        },
+        system: messages[0].content,
+        messages: [messages[1]],
+    });
+
+    let contexts = [];
+
+    (result?.toolCalls || []).forEach(toolCall => {
+        contexts.push(toolCall.args);
+    })
+
+    return { contexts };
 }
 
 // main function that orchestrates the context extraction process
@@ -399,118 +459,52 @@ async function harvest(_name, commandOptions, _command) {
     try {
         const options = commandOptions.opts();
 
-        if (options.ai === 'crowdin' && !options.crowdinAiId) {
-            console.error('error: --crowdinAiId is required when using Crowdin AI');
-            process.exit(1);
+        if (options.append) {
+            if (options.output !== 'csv') {
+                console.error(`--append can't be used when --output is not equal to "csv"`);
+                process.exit(1);
+            }
+            if (!fs.existsSync(options.csvFile)) {
+                console.error(`CSV file doesn't exist, can't run with --append option`);
+                process.exit(1);
+            }
         }
 
-        if (options.ai === 'openai' && !options.openAiKey.length) {
-            console.error('error: --openAiKey is required when using OpenAI');
-            process.exit(1);
+        if (!['terminal', 'csv', 'crowdin'].includes(options.output)) {
+            console.error('Wrong value provided for --output option. terminal, csv and crowdin values are available.');
+            process.exit();
         }
+
+        validateAiProviderFields(options);
 
         const apiClient = await getCrowdin(options);
-
-        spinner.start(`Loading Crowdin data...`);
-
-        let project;
-        try {
-            project = (await apiClient.projectsGroupsApi.getProject(options.project)).data;
-        } catch (error) {
-            spinner.fail();
-            spinner.fail(`Error: ${error.message}`);
-            process.exit(1);
-        }
-
-        const isStringsProject = (project.type == 1);
-
-        let containers = []; // we call it containers because it can be either files in a regular Crowdin project or branches in a Strings project
-
-        try {
-            if (isStringsProject) {
-                containers = (await apiClient.sourceFilesApi.withFetchAll().listProjectBranches(options.project)).data.map(branch => branch.data);
-            } else {
-                if (options.croql) { // because croql filter can't be used with files filter, we create this dummy container as there would no files but we would have strings
-                    containers = [{
-                        id: 0,
-                        path: 'croql'
-                    }]
-                } else {
-                    containers = await getCrowdinFiles({
-                        apiClient,
-                        project: options.project,
-                        filesPattern: options.crowdinFiles
-                    });
-                }
-            }
-        } catch (error) {
-            spinner.fail();
-            console.error(`\nError loading Crowdin files: ${error}`);
-            process.exit(1);
-        }
-
-        spinner.succeed();
-
         const localFiles = globSync(options.localFiles ? options.localFiles.split(';') : [], { ignore: options?.localIgnore ? options.localIgnore.split(';') : [] });
 
-        let strings = [];
+        const strings = await getCrowdinStrings({
+            spinner,
+            options,
+            apiClient,
+        });
 
-        // for every branch or file (or one iteration if we are using croql filter)
-        for (const container of containers) {
-            let stringsBatch = [];
-            try {
-                spinner.start(`Loading strings from ${chalk.green(container.path || container.name)}`);
-                const result = await fetchCrowdinStrings({
-                    apiClient,
-                    project: options.project,
-                    isStringsProject,
-                    container,
-                    croql: options.croql
-                });
-                strings.push(...result.crowdinStrings);
-                stringsBatch = result.strings;
-                spinner.succeed();
-            } catch (error) {
-                spinner.fail();
-                console.error(`\nError loading strings from ${container.path || container.name}: ${error}. Proceeding with other files...`);
-                continue;
-            }
+        let stringsContext = {};
 
-            // for every local file that matches the glob pattern provided by the user
-            for (const localFile of localFiles) {
-                let content;
-                try {
-                    content = fs.readFileSync(localFile, 'utf8'); // get the content of the code file
-                } catch (error) {
-                    console.error(`\nError reading file ${localFile}: ${error}. Proceeding with other files...`);
-                    continue;
-                }
+        try {
+            stringsContext = await chunkAndExtract({
+                apiClient,
+                crowdinStrings: strings,
+                localFiles,
+                options,
+            });
+        } catch (e) {
+            console.log('\nError during context extraction');
+            console.error(e);
+        }
 
-                let context;
-
-                // extract the context from the code file
-                try {
-                    context = await chunkAndExtract({
-                        apiClient,
-                        options,
-                        content,
-                        crowdinStrings: stringsBatch,
-                        fileName: localFile,
-                    });
-                } catch (error) {
-                    console.error(`\nError extracting context from ${chalk.green(localFile)}: ${error}. Proceeding with other files...`);
-                    continue;
-                }
-
-                // append newly found context to the array of AI contexts
-                try {
-                    await appendContext(strings, context);
-                } catch (error) {
-                    console.error(`\nError appending context from ${localFile}: ${error}. AI Might have returned an empty or invalid context. Proceeding with other files...`);
-                    console.error(context);
-                    continue;
-                }
-            }
+        try {
+            await appendContext(strings, stringsContext);
+        } catch (error) {
+            console.log('\nError during context appending');
+            console.error(error);
         }
 
         if (options.output === 'terminal') {

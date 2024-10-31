@@ -21,21 +21,27 @@ async function upload(_name, commandOptions, _command) {
             return {
                 id: row.id,
                 context: row.context,
-                aiContext: row.aiContext.split('\n').filter((line) => line.trim() !== ''),  // remove empty lines, also uploadAiStringsToCrowdin expects array
+                aiContext: typeof row.aiContext === 'undefined' ? undefined : row.aiContext.split('\n').filter((line) => line.trim() !== ''),  // remove empty lines, also uploadAiStringsToCrowdin expects array
             };
         });
 
         spinner.start(`Uploading the reviewed context to Crowdin...`);
+
         await uploadAiStringsToCrowdin({
             apiClient,
             project: options.project,
             strings,
+            uploadAll: typeof strings[0].aiContext === 'undefined',
         });
         spinner.succeed();
 
         console.log(`✨ The reviewed context has been uploaded to Crowdin project.`);
     } catch (e) {
-        console.error(`Error: ${e.message}`);
+        if (e.message.includes('stringNotExists')) {
+            console.error("Some strings wasn't found in project. Please check CSV file and remove excessive strings.");
+        } else {
+            console.error(`Error: ${e.message}`);
+        }
         process.exit(1);
     }
 }

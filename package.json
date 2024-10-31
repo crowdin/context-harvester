@@ -30,20 +30,29 @@
     "access": "public"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^0.0.51",
+    "@ai-sdk/azure": "^0.0.48",
+    "@ai-sdk/google-vertex": "^0.0.40",
+    "@ai-sdk/mistral": "^0.0.44",
+    "@ai-sdk/openai": "^0.0.68",
     "@crowdin/crowdin-api-client": "^1.33.1",
+    "ai": "^3.4.17",
     "axios": "^1.7.2",
     "chalk": "^5.3.0",
     "cli-width": "^4.1.0",
     "commander": "^12.1.0",
+    "csv": "^6.3.10",
     "csvtojson": "^2.0.10",
     "glob": "^10.4.1",
-    "gpt-tokenizer": "^2.1.2",
+    "google-auth-library": "^9.14.2",
     "inquirer": "^9.2.22",
     "json2csv": "^6.0.0-alpha.2",
     "minimatch": "^9.0.4",
     "ora": "^8.0.1",
     "table": "^6.8.2",
-    "update-notifier": "^7.0.0"
+    "tiktoken": "^1.0.17",
+    "update-notifier": "^7.0.0",
+    "zod": "^3.23.8"
   },
   "license": "MIT"
 }

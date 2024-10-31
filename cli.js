@@ -5,6 +5,7 @@ import configureCli from './src/configure.js';
 import harvest from './src/harvest.js';
 import reset from './src/reset.js';
 import upload from './src/upload.js';
+import check from './src/check.js';
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
@@ -24,6 +25,15 @@ const tokenEnvName = 'CROWDIN_PERSONAL_TOKEN';
 const baseUrlEnvName = 'CROWDIN_BASE_URL';
 const projectEnvName = 'CROWDIN_PROJECT_ID';
 const openApiEnvName = 'OPENAI_KEY';
+const googleVertexProjectEnvName = 'GOOGLE_VERTEX_PROJECT';
+const googleVertexLocationEnvName = 'GOOGLE_VERTEX_LOCATION';
+const googleVertexClientEmailEnvName = 'GOOGLE_VERTEX_CLIENT_EMAIL';
+const googleVertexPrivateKeyEnvName = 'GOOGLE_VERTEX_PRIVATE_KEY';
+const azureResourceNameEnvName = 'AZURE_RESOURCE_NAME';
+const azureApiKeyEnvName = 'AZURE_API_KEY';
+const azureDeploymentNameEnvName = 'AZURE_DEPLOYMENT_NAME';
+const anthropicApiKeyEnvName = 'ANTHROPIC_API_KEY';
+const mistralApiKeyEnvName = 'MISTRAL_API_KEY';
 
 program
     .version(packageJson.version)
@@ -43,7 +53,16 @@ program
     .description('helps you find argument values for the harvest command')
     .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project, AI scopes)').env(tokenEnvName))
     .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
-    .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. Setting OpenAI Key as an environment variable is recommended.').env(openApiEnvName))
+    .addOption(new Option('-k, --openAiKey <openai-api-key>', 'OpenAI API key. Setting this option as an environment variable is recommended.').env(openApiEnvName))
+    .addOption(new Option('-gvp, --googleVertexProject <google-vertext-project-id>', 'Google Cloud Project ID. Setting this option as an environment variable is recommended.').env(googleVertexProjectEnvName))
+    .addOption(new Option('-gvl, --googleVertexLocation <google-vertext-location>', 'Google Cloud Project location. Setting this option as an environment variable is recommended.').env(googleVertexLocationEnvName))
+    .addOption(new Option('-gvce, --googleVertexClientEmail <google-vertext-client-email>', 'Google Cloud service account client email. Setting this option as an environment variable is recommended.').env(googleVertexClientEmailEnvName))
+    .addOption(new Option('-gvpk, --googleVertexPrivateKey <google-vertext-private-key>', 'Google Cloud service account private key. Setting this option as an environment variable is recommended.').env(googleVertexPrivateKeyEnvName))
+    .addOption(new Option('-azr, --azureResourceName <azure-resource-name>', 'MS Azure OpenAI resource name. Setting this option as an environment variable is recommended.').env(azureResourceNameEnvName))
+    .addOption(new Option('-azk, --azureApiKey <azure-api-key>', 'MS Azure OpenAI API key. Setting this option as an environment variable is recommended.').env(azureApiKeyEnvName))
+    .addOption(new Option('-azd, --azureDeploymentName <azure-resource-name>', 'MS Azure OpenAI deployment name. Setting this option as an environment variable is recommended.').env(azureDeploymentNameEnvName))
+    .addOption(new Option('-ank, --anthropicApiKey <anthropic-api-key>', 'Anthropic API key. Setting this option as an environment variable is recommended.').env(anthropicApiKeyEnvName))
+    .addOption(new Option('-mk, --mistralApiKey <mistral-api-key>', 'Mistral API key. Setting this option as an environment variable is recommended.').env(mistralApiKeyEnvName))
     .aliases(['init'])
     .action(configureCli);
 
@@ -53,23 +72,35 @@ program
     .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project and AI scopes granted).').makeOptionMandatory().env(tokenEnvName))
     .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
     .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory().env(projectEnvName))
-    .addOption(new Option('-a, --ai <provider>', 'AI provider (e.g., "crowdin" or "openai").').default('openai').makeOptionMandatory())
+    .addOption(new Option('-a, --ai <provider>', 'AI provider ("crowdin", "openai", "google-vertex", "azure", "anthropic" or "mistral").').default('openai').makeOptionMandatory())
     .addOption(new Option('-ci, --crowdinAiId <id>', 'Crowdin AI provider ID (e.g. 12). This option is mandatory if "crowdin" is chosen as the AI provider.'))
-    .addOption(new Option('-k, --openAiKey <key>', 'OpenAI key. This option is mandatory if "openai" is chosen as the AI provider.').env(openApiEnvName))
-    .addOption(new Option('-m, --model <model>', 'AI model. Should accept at least 128,000 tokens context window and support tool calls.').default('gpt-4o').makeOptionMandatory())
+    .addOption(new Option('-k, --openAiKey <key>', 'OpenAI API key. This option is mandatory if "openai" is chosen as the AI provider.').env(openApiEnvName))
+    .addOption(new Option('-gvp, --googleVertexProject <google-vertext-project-id>', 'Google Cloud Project ID. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexProjectEnvName))
+    .addOption(new Option('-gvl, --googleVertexLocation <google-vertext-location>', 'Google Cloud Project location. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexLocationEnvName))
+    .addOption(new Option('-gvce, --googleVertexClientEmail <google-vertext-client-email>', 'Google Cloud service account client email. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexClientEmailEnvName))
+    .addOption(new Option('-gvpk, --googleVertexPrivateKey <google-vertext-private-key>', 'Google Cloud service account private key. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexPrivateKeyEnvName))
+    .addOption(new Option('-azr, --azureResourceName <azure-resource-name>', 'MS Azure OpenAI resource name. This option is mandatory if "azure" is chosen as the AI provider.').env(azureResourceNameEnvName))
+    .addOption(new Option('-azk, --azureApiKey <azure-api-key>', 'MS Azure OpenAI API key. This option is mandatory if "azure" is chosen as the AI provider.').env(azureApiKeyEnvName))
+    .addOption(new Option('-azd, --azureDeploymentName <azure-resource-name>', 'MS Azure OpenAI deployment name. This option is mandatory if "azure" is chosen as the AI provider.').env(azureDeploymentNameEnvName))
+    .addOption(new Option('-ank, --anthropicApiKey <anthropic-api-key>', 'Anthropic API key. This option is mandatory if "anthropic" is chosen as the AI provider.').env(anthropicApiKeyEnvName))
+    .addOption(new Option('-mk, --mistralApiKey <mistral-api-key>', 'Mistral API key. This option is mandatory if "mistral" is chosen as the AI provider.').env(mistralApiKeyEnvName))
+    .addOption(new Option('-m, --model <model>', 'AI model. Should accept at least 128,000 tokens context window and support tool calls.').default('gpt-4o'))
+    .addOption(new Option('-cs, --contextWindowSize <context-window-size>', 'AI model\'s context window size in tokens.').makeOptionMandatory())
+    .addOption(new Option('-mt, --maxOutputTokens <max-output-tokens>', 'AI model\'s max output tokens count.').makeOptionMandatory())
     .addOption(new Option('-cp, --promptFile <path>', 'path to a file containing a custom prompt. Use "-" to read from STDIN. (optional)'))
     .addOption(new Option('-l, --localFiles <pattern>', 'local file names pattern (valid glob pattern, multiple patterns are possible, separated by ";".)').default('**/*.*').makeOptionMandatory())
     .addOption(new Option('-i, --localIgnore <pattern>', 'local file names to ignore (valid glob pattern, multiple patterns are possible, separated by ";".)').default('/**/node_modules/**'))
     .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default('**/*.*'))
     .addOption(new Option('-q, --croql <croql>', 'use CroQL to select a specific subset of strings to extract context for (e.g. strings without AI context, strings modified since specific date, etc.). Cannot be set together with the crowdinFiles argument.'))
-    .addOption(new Option('-s, --screen <keys | texts>', 'check if the code contains the key or the text of the string before sending it to the AI model (recommended if you have thousands of keys to avoid chunking and improve speed). If the "text" value is selected, efficiency may be reduced.').default('keys'))
+    .addOption(new Option('-s, --screen <keys | texts>', 'check if the code contains the key or the text of the string before sending it to the AI model (recommended if you have thousands of keys to avoid chunking and improve speed). If the "text" value is selected, efficiency may be reduced.').default('none'))
     .addOption(new Option('-w, --output <csv | terminal | crowdin>', 'output destination for extracted context. "terminal" can be considered as a dry run. "crowdin" will save the extracted context to the Crowdin project. "csv" will save the extracted context to a CSV file for review.').default('csv').makeOptionMandatory())
     .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file to save extracted context to.').default('crowdin-context.csv'))
+    .addOption(new Option('-ap, --append', 'use this option to append AI context to existing CSV file. this option is useful to harvest context for strings returned by "check" command.'))
     .aliases(['extract'])
     .addHelpText(
         'after',
         `
-It's recommended to configure your Crowdin and OpenAI credentials in the environment variables before running the command.
+It's recommended to configure your Crowdin and AI provider credentials in the environment variables before running the command.
 
 Examples:
     $ crowdin-context-harvester harvest --project=462
@@ -79,6 +110,43 @@ Examples:
     $ crowdin-context-harvester harvest --project=462 --croql="added between '2023-12-06 13:44:14' and '2023-12-07 13:44:14'" --output=terminal
     `)
     .action(harvest);
+
+program
+  .command('check')
+  .description('check if strings in Crowdin project have enough context to be translated')
+  .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project and AI scopes granted).').makeOptionMandatory().env(tokenEnvName))
+  .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
+  .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory().env(projectEnvName))
+  .addOption(new Option('-a, --ai <provider>', 'AI provider ("crowdin", "openai", "google-vertex", "azure", "anthropic" or "mistral").').default('openai').makeOptionMandatory())
+  .addOption(new Option('-ci, --crowdinAiId <id>', 'Crowdin AI provider ID (e.g. 12). This option is mandatory if "crowdin" is chosen as the AI provider.'))
+  .addOption(new Option('-k, --openAiKey <key>', 'OpenAI API key. This option is mandatory if "openai" is chosen as the AI provider.').env(openApiEnvName))
+  .addOption(new Option('-gvp, --googleVertexProject <google-vertext-project-id>', 'Google Cloud Project ID. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexProjectEnvName))
+  .addOption(new Option('-gvl, --googleVertexLocation <google-vertext-location>', 'Google Cloud Project location. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexLocationEnvName))
+  .addOption(new Option('-gvce, --googleVertexClientEmail <google-vertext-client-email>', 'Google Cloud service account client email. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexClientEmailEnvName))
+  .addOption(new Option('-gvpk, --googleVertexPrivateKey <google-vertext-private-key>', 'Google Cloud service account private key. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexPrivateKeyEnvName))
+  .addOption(new Option('-azr, --azureResourceName <azure-resource-name>', 'MS Azure OpenAI resource name. This option is mandatory if "azure" is chosen as the AI provider.').env(azureResourceNameEnvName))
+  .addOption(new Option('-azk, --azureApiKey <azure-api-key>', 'MS Azure OpenAI API key. This option is mandatory if "azure" is chosen as the AI provider.').env(azureApiKeyEnvName))
+  .addOption(new Option('-azd, --azureDeploymentName <azure-resource-name>', 'MS Azure OpenAI deployment name. This option is mandatory if "azure" is chosen as the AI provider.').env(azureDeploymentNameEnvName))
+  .addOption(new Option('-ank, --anthropicApiKey <anthropic-api-key>', 'Anthropic API key. This option is mandatory if "anthropic" is chosen as the AI provider.').env(anthropicApiKeyEnvName))
+  .addOption(new Option('-mk, --mistralApiKey <mistral-api-key>', 'Mistral API key. This option is mandatory if "mistral" is chosen as the AI provider.').env(mistralApiKeyEnvName))
+  .addOption(new Option('-m, --model <model>', 'AI model. Should accept at least 128,000 tokens context window and support tool calls.').default('gpt-4o'))
+  .addOption(new Option('-cs, --contextWindowSize <context-window-size>', 'AI model\'s context window size in tokens.').makeOptionMandatory())
+  .addOption(new Option('-mt, --maxOutputTokens <max-output-tokens>', 'AI model\'s max output tokens count.').makeOptionMandatory())
+  .addOption(new Option('-cp, --promptFile <path>', 'path to a file containing a custom prompt. Use "-" to read from STDIN. (optional)'))
+  .addOption(new Option('-c, --crowdinFiles <pattern>', 'Crowdin file names pattern (valid glob pattern)').default('**/*.*'))
+  .addOption(new Option('-q, --croql <croql>', 'use CroQL to check context of a specific subset of strings (e.g. strings without AI context, strings modified since specific date, etc.). Cannot be set together with the crowdinFiles argument.'))
+  .addOption(new Option('-w, --output <csv | terminal>', 'output destination for extracted context. "terminal" can be considered as a dry run. "csv" will save the extracted context to a CSV file for review.').default('csv').makeOptionMandatory())
+  .addOption(new Option('-f, --csvFile <path>', 'path to the CSV file to save check result to.').default('crowdin-context.csv'))
+  .addHelpText(
+    'after',
+    `
+It's recommended to configure your Crowdin and AI provider credentials in the environment variables before running the command.
+
+Examples:
+    $ crowdin-context-harvester check --project=462
+    $ crowdin-context-harvester check --project=462 --crowdinFiles="strings.xml"
+    `)
+  .action(check);
 
 program
     .command('upload')
@@ -91,7 +159,7 @@ program
     .addHelpText(
         'after',
         `
-It's recommended to configure your Crowdin and OpenAI credentials in the environment variables before running the command.
+It's recommended to configure your Crowdin and AI provider credentials in the environment variables before running the command.
 
 Examples:
     $ crowdin-context-harvester upload --project=462
@@ -109,7 +177,7 @@ program
     .addHelpText(
         'after',
         `
-It's recommended to configure your Crowdin and OpenAI credentials in the environment variables before running the command.
+It's recommended to configure your Crowdin and AI provider credentials in the environment variables before running the command.
 
 Examples:
     $ crowdin-context-harvester reset -p 462 --crowdinFiles="strings.xml"

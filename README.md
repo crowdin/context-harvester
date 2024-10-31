@@ -18,7 +18,7 @@ This tool is especially useful when translating UI projects with Crowdin. The Co
 ## Features
 
 - **Context Extraction**: Pulls keys from your Crowdin project and analyzes your code to extract usage context.
-- **LLM Integration**: Utilizes OpenAI for sophisticated context determination.
+- **LLM Integration**: Utilizes AI for sophisticated context determination.
 - **Configuration Flexibility**: The CLI comes with a handy `configure` command to help you get started quickly.
 - **CroQL Query Support**: Allows advanced filtering of Crowdin resources.
 - **Custom Prompting**: Enables custom prompts for tailored context extraction.
@@ -39,7 +39,26 @@ Set the following ENV variables for authentication:
  - `CROWDIN_PERSONAL_TOKEN` should be granted for projects and AI scopes;
  - `CROWDIN_BASE_URL`  - for Crowdin Enterprise only, should follow this format: `https://<org-name>.api.crowdin.com`;
  - `CROWDIN_PROJECT_ID` - Crowdin project id;
- - `OPENAI_KEY` - when using OpenAI for AI context extraction;
+
+If you prefer to use OpenAI to extract context you can set following variables:
+ - `OPENAI_KEY` - OpenAI API key.
+
+If you prefer to use Google Gemini (Vertex AI API) to extract context you can set following variables:
+- `GOOGLE_VERTEX_PROJECT` - project identifier from Google Cloud Console;
+- `GOOGLE_VERTEX_LOCATION` - project location (e.g. us-central1);
+- `GOOGLE_VERTEX_CLIENT_EMAIL` - client email of Vertex AI service user;
+- `GOOGLE_VERTEX_PRIVATE_KEY` - private key of Vertex AI service user.
+
+If you prefer to use MS Azure OpenAI to extract context you can set following variables:
+- `AZURE_RESOURCE_NAME` - MS Azure resource name;
+- `AZURE_API_KEY` - MS Azure API key;
+- `AZURE_DEPLOYMENT_NAME` - MS Azure deployment name.
+
+If you prefer to use Anthropic to extract context you can set following variables:
+- `ANTHROPIC_API_KEY` - Anthropic API key.
+
+If you prefer to use Mistral to extract context you can set following variables:
+- `MISTRAL_API_KEY` - Mistral API key.
   
 ### Initial Setup
 
@@ -67,7 +86,9 @@ crowdin-context-harvester harvest\
     --localIgnore="node_modules/**"\
     --crowdinFiles="*.json"\
     --screen="keys"\
-    --output="csv"
+    --output="csv"\
+    --contextWindowSize="128000"\
+    --maxOutputTokens="16384"
 ```
 
 __Note:__ The `url` argument is required for Crowdin Enterprise only. Passing all credentials as environment variables is recommended.
@@ -114,7 +135,8 @@ Code:
 ```
 
 ### AI Providers
-The CLI currently supports the OpenAI AI provider. Provide an OpenAI API key or a Crowdin provider ID for context extraction.
+The CLI currently supports OpenAI, Google Gemini (Vertex AI), MS Azure OpenAI, Anthropic, and Mistral as AI providers. Provide required credentials or a Crowdin provider ID for context extraction.
+Consuming AI providers through Crowdin is useful for a quick start. Note, however, that in this case the code is uploaded to Crowdin before it is sent to the AI provider. 
 
 ### Handling Large Projects
 
