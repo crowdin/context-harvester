@@ -327,6 +327,7 @@ async function chunkAndExtract({ apiClient, options, crowdinStrings, localFiles 
                 stringsInFiles = filterStrings(Object.values(stringsInFiles), stringifyFiles({ files: filesChunk }), options.screen);
                 stringsInFiles = stringsInFiles.reduce((acc, curr) => {
                     acc[curr.id] = curr;
+                    return acc;
                 }, {});
             }
             // if there are no strings left after screening, we return an empty context
