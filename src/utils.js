@@ -208,7 +208,7 @@ async function getUserId(apiClient) {
  */
 function validateAiProviderFields(options) {
     const fieldsToProviderMapping = {
-        'crowidn': ['crowdinAiId'],
+        'crowdin': ['crowdinAiId'],
         'openai': ['openAiKey'],
         'google-vertex': ['googleVertexProject', 'googleVertexLocation', 'googleVertexClientEmail', 'googleVertexPrivateKey'],
         'azure': ['azureResourceName', 'azureApiKey', 'azureDeploymentName'],
