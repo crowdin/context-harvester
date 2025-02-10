@@ -4,7 +4,7 @@ updates:
     directory: "/"
     target-branch: "main"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     ignore:
       - dependency-name: "*"
         update-types: [ "version-update:semver-major" ]
