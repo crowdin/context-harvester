@@ -12,6 +12,3 @@ updates:
       ai-sdk-dependencies:
         patterns:
           - "@ai-sdk/*"
-        update-types:
-          - "version-update:semver-patch"
-          - "version-update:semver-minor"
