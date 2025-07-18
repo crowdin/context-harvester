@@ -52,7 +52,7 @@ async function configureCli(_name, commandOptions, _command) {
         message: 'AI provider:',
         choices: [
           { name: 'Crowdin AI Provider', value: 'crowdin' },
-          { name: 'OpenAI', value: 'openai' },
+          { name: 'OpenAI (OpenAI API or OpenAI-compatible API)', value: 'openai' },
           { name: 'Google Gemini (Vertex AI API)', value: 'google-vertex' },
           { name: 'MS Azure OpenAI', value: 'azure' },
           { name: 'Anthropic', value: 'anthropic' },
@@ -85,6 +85,11 @@ async function configureCli(_name, commandOptions, _command) {
         name: 'openai_key',
         message: 'OpenAI API key:',
         when: (answers) => answers.ai === 'openai' && !options.openAiKey,
+    }, {
+        type: 'input',
+        name: 'openai_base_url',
+        message: 'OpenAI-compatible API base URL (optional, defaults to https://api.openai.com/v1):',
+        when: (answers) => answers.ai === 'openai' && !options.openAiBaseUrl,
     }, {
         type: 'input',
         name: 'google_vertex_project',
@@ -157,7 +162,9 @@ async function configureCli(_name, commandOptions, _command) {
 
             if (answers.ai === 'openai') {
                 try {
-                    const openAiModels = (await axios.get('https://api.openai.com/v1/models', {
+                    // Use custom base URL if provided, otherwise default to OpenAI
+                    const baseUrl = process.env.OPENAI_BASE_URL || answers.openai_base_url || 'https://api.openai.com/v1';
+                    const openAiModels = (await axios.get(`${baseUrl}/models`, {
                         headers: {
                             "Authorization": `Bearer ${process.env.OPENAI_KEY || answers.openai_key}`
                         }
@@ -305,6 +312,7 @@ async function configureCli(_name, commandOptions, _command) {
         chalk.yellow('--project=') + chalk.white(`${answers.project} `) +
         chalk.yellow('--ai=') + chalk.white(`"${answers.ai}" `) +
         (answers.openai_key && !options.openAiKey ? chalk.yellow('--openAiKey=') + chalk.white(`"${answers.openai_key}" `) : '') +
+        (answers.openai_base_url && !options.openAiBaseUrl ? chalk.yellow('--openAiBaseUrl=') + chalk.white(`"${answers.openai_base_url}" `) : '') +
         (answers.google_vertex_project && !options.googleVertexProject ? chalk.yellow('--googleVertexProject=') + chalk.white(`"${answers.google_vertex_project}" `) : '') +
         (answers.google_vertex_location && !options.googleVertexLocation ? chalk.yellow('--googleVertexLocation=') + chalk.white(`"${answers.google_vertex_location}" `) : '') +
         (answers.google_vertex_client_email && !options.googleVertexClientEmail ? chalk.yellow('--googleVertexClientEmail=') + chalk.white(`"${answers.google_vertex_client_email}" `) : '') +

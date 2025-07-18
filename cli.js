@@ -25,6 +25,7 @@ const tokenEnvName = 'CROWDIN_PERSONAL_TOKEN';
 const baseUrlEnvName = 'CROWDIN_BASE_URL';
 const projectEnvName = 'CROWDIN_PROJECT_ID';
 const openApiEnvName = 'OPENAI_KEY';
+const openAiBaseUrlEnvName = 'OPENAI_BASE_URL';
 const googleVertexProjectEnvName = 'GOOGLE_VERTEX_PROJECT';
 const googleVertexLocationEnvName = 'GOOGLE_VERTEX_LOCATION';
 const googleVertexClientEmailEnvName = 'GOOGLE_VERTEX_CLIENT_EMAIL';
@@ -54,6 +55,7 @@ program
     .addOption(new Option('-t, --token <token>', 'Crowdin Personal API token (with Project, AI scopes)').env(tokenEnvName))
     .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
     .addOption(new Option('-k, --openAiKey <openai-api-key>', 'OpenAI API key. Setting this option as an environment variable is recommended.').env(openApiEnvName))
+    .addOption(new Option('-ob, --openAiBaseUrl <openai-base-url>', 'OpenAI-compatible API base URL (e.g., http://localhost:8000/v1). Setting this option as an environment variable is recommended.').env(openAiBaseUrlEnvName))
     .addOption(new Option('-gvp, --googleVertexProject <google-vertext-project-id>', 'Google Cloud Project ID. Setting this option as an environment variable is recommended.').env(googleVertexProjectEnvName))
     .addOption(new Option('-gvl, --googleVertexLocation <google-vertext-location>', 'Google Cloud Project location. Setting this option as an environment variable is recommended.').env(googleVertexLocationEnvName))
     .addOption(new Option('-gvce, --googleVertexClientEmail <google-vertext-client-email>', 'Google Cloud service account client email. Setting this option as an environment variable is recommended.').env(googleVertexClientEmailEnvName))
@@ -75,6 +77,7 @@ program
     .addOption(new Option('-a, --ai <provider>', 'AI provider ("crowdin", "openai", "google-vertex", "azure", "anthropic" or "mistral").').default('openai').makeOptionMandatory())
     .addOption(new Option('-ci, --crowdinAiId <id>', 'Crowdin AI provider ID (e.g. 12). This option is mandatory if "crowdin" is chosen as the AI provider.'))
     .addOption(new Option('-k, --openAiKey <key>', 'OpenAI API key. This option is mandatory if "openai" is chosen as the AI provider.').env(openApiEnvName))
+    .addOption(new Option('-ob, --openAiBaseUrl <base-url>', 'OpenAI-compatible API base URL (e.g., http://localhost:8000/v1). This option is optional when "openai" is chosen as the AI provider.').env(openAiBaseUrlEnvName))
     .addOption(new Option('-gvp, --googleVertexProject <google-vertext-project-id>', 'Google Cloud Project ID. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexProjectEnvName))
     .addOption(new Option('-gvl, --googleVertexLocation <google-vertext-location>', 'Google Cloud Project location. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexLocationEnvName))
     .addOption(new Option('-gvce, --googleVertexClientEmail <google-vertext-client-email>', 'Google Cloud service account client email. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexClientEmailEnvName))
@@ -108,6 +111,7 @@ Examples:
     $ crowdin-context-harvester harvest --project=462 --crowdinFiles="strings.xml" --localFiles="src/*"
     $ crowdin-context-harvester harvest --project=462 --croql='not (context contains "✨ AI Context")'
     $ crowdin-context-harvester harvest --project=462 --croql="added between '2023-12-06 13:44:14' and '2023-12-07 13:44:14'" --output=terminal
+    $ crowdin-context-harvester harvest --project=462 --ai="openai" --openAiKey="sk-xxx" --openAiBaseUrl="http://localhost:8000/v1"
     `)
     .action(harvest);
 
@@ -120,6 +124,7 @@ program
   .addOption(new Option('-a, --ai <provider>', 'AI provider ("crowdin", "openai", "google-vertex", "azure", "anthropic" or "mistral").').default('openai').makeOptionMandatory())
   .addOption(new Option('-ci, --crowdinAiId <id>', 'Crowdin AI provider ID (e.g. 12). This option is mandatory if "crowdin" is chosen as the AI provider.'))
   .addOption(new Option('-k, --openAiKey <key>', 'OpenAI API key. This option is mandatory if "openai" is chosen as the AI provider.').env(openApiEnvName))
+  .addOption(new Option('-ob, --openAiBaseUrl <base-url>', 'OpenAI-compatible API base URL (e.g., http://localhost:8000/v1). This option is optional when "openai" is chosen as the AI provider.').env(openAiBaseUrlEnvName))
   .addOption(new Option('-gvp, --googleVertexProject <google-vertext-project-id>', 'Google Cloud Project ID. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexProjectEnvName))
   .addOption(new Option('-gvl, --googleVertexLocation <google-vertext-location>', 'Google Cloud Project location. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexLocationEnvName))
   .addOption(new Option('-gvce, --googleVertexClientEmail <google-vertext-client-email>', 'Google Cloud service account client email. This option is mandatory if "google-vertex" is chosen as the AI provider.').env(googleVertexClientEmailEnvName))
