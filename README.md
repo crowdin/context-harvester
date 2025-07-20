@@ -42,6 +42,7 @@ Set the following ENV variables for authentication:
 
 If you prefer to use OpenAI to extract context you can set following variables:
  - `OPENAI_KEY` - OpenAI API key.
+ - `OPENAI_BASE_URL` - OpenAI-compatible API base URL (optional, defaults to https://api.openai.com/v1).
 
 If you prefer to use Google Gemini (Vertex AI API) to extract context you can set following variables:
 - `GOOGLE_VERTEX_PROJECT` - project identifier from Google Cloud Console;
@@ -81,6 +82,7 @@ crowdin-context-harvester harvest\
     --project=<project-id>\
     --ai="openai"\
     --openAiKey="<your-openai-token>"\
+    --openAiBaseUrl="http://localhost:8000/v1"\
     --model="gpt-4o"\
     --localFiles="**/*.*"\
     --localIgnore="node_modules/**"\
@@ -91,7 +93,7 @@ crowdin-context-harvester harvest\
     --maxOutputTokens="16384"
 ```
 
-__Note:__ The `url` argument is required for Crowdin Enterprise only. Passing all credentials as environment variables is recommended.
+__Note:__ The `url` argument is required for Crowdin Enterprise only. The `openAiBaseUrl` argument allows you to use custom OpenAI-compatible endpoints (e.g., local LLMs, third-party APIs). Passing all credentials as environment variables is recommended.
 
 When this command is executed, the CLI will pull strings from all Crowdin files that match the `--crowdinFiles` glob pattern, then go through all files that match `--localFiles`, check if strings from Crowdin files are present in every file on your computer (because of the `--screen="keys"`), and if they are, both matching strings and the code files will be sent to LLM with a prompt to extract contextual information, information about how these strings are used in the code, how they appear to the end user in the UI, etc.
 

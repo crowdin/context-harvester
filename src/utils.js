@@ -434,9 +434,16 @@ function stringifyStrings({ strings}) {
  */
 function getAiClient(options) {
     if (options.ai === 'openai') {
-        return createOpenAI({
+        const config = {
             apiKey: options.openAiKey,
-        });
+        };
+        
+        // Add base URL if provided
+        if (options.openAiBaseUrl) {
+            config.baseURL = options.openAiBaseUrl;
+        }
+        
+        return createOpenAI(config);
     }
 
     if (options.ai === 'anthropic') {
