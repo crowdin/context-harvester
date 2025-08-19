@@ -177,12 +177,18 @@ async function configureCli(_name, commandOptions, _command) {
         }
 
         if (answers.ai === 'anthropic') {
-          return ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'].map(
-            model => ({
-              value: model,
-              label: model,
-            }),
-          );
+          return [
+            'claude-opus-4-20250514',
+            'claude-sonnet-4-20250514',
+            'claude-3-7-sonnet-20250219',
+            'claude-3-5-sonnet-20240620',
+            'claude-3-opus-20240229',
+            'claude-3-sonnet-20240229',
+            'claude-3-haiku-20240307',
+          ].map(model => ({
+            value: model,
+            label: model,
+          }));
         }
 
         if (answers.ai === 'google-vertex') {
@@ -219,6 +225,8 @@ async function configureCli(_name, commandOptions, _command) {
                 'gemini-1.5-flash',
                 'gemini-1.5-flash-001',
                 'gemini-1.5-flash-002',
+                'gemini-2.5-pro',
+                'gemini-2.5-flash',
               ].map(model => ({
                 value: model,
                 label: model,
@@ -274,6 +282,13 @@ async function configureCli(_name, commandOptions, _command) {
       name: 'concurrency',
       message: 'Parallelism (concurrency) level for per-string extraction:',
       default: '10',
+      validate: value => {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+          return 'Please enter a positive integer';
+        }
+        return true;
+      },
     },
   ];
 

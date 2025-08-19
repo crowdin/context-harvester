@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command, Option } from 'commander';
+import { Command, Option, InvalidArgumentError } from 'commander';
 import configureCli from './src/configure.js';
 import harvest from './src/harvest.js';
 import reset from './src/reset.js';
@@ -19,6 +19,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.
 updateNotifier({ pkg: packageJson }).notify();
 
 const program = new Command();
+program.showHelpAfterError();
 
 const tokenEnvName = 'CROWDIN_PERSONAL_TOKEN';
 const baseUrlEnvName = 'CROWDIN_BASE_URL';
@@ -227,7 +228,15 @@ program
       'use this option to append AI context to existing CSV file. this option is useful to harvest context for strings returned by "check" command.',
     ),
   )
-  .addOption(new Option('-j, --concurrency <n>', 'concurrency level for per-string extraction').default('10'))
+  .addOption(
+    new Option('-j, --concurrency <n>', 'concurrency level for per-string extraction').default(10).argParser(value => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+        throw new InvalidArgumentError('Invalid value for --concurrency: must be a positive integer');
+      }
+      return parsed;
+    }),
+  )
   .aliases(['extract'])
   .addHelpText(
     'after',

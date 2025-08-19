@@ -386,7 +386,7 @@ function getChatModel(options) {
   if (provider === 'openai') {
     const apiKey = options.openAiKey;
     const baseURL = options.openAiBaseUrl;
-    return new ChatOpenAI({ apiKey, model, useResponsesApi: true, configuration: baseURL ? { baseURL } : undefined });
+    return new ChatOpenAI({ apiKey, model, configuration: baseURL ? { baseURL } : undefined });
   }
   if (provider === 'anthropic') {
     const apiKey = options.anthropicApiKey;
@@ -404,7 +404,7 @@ function getChatModel(options) {
       azureOpenAIApiKey,
       azureOpenAIApiInstanceName,
       azureOpenAIApiDeploymentName,
-      useResponsesApi: true,
+      azureOpenAIApiVersion: '2023-05-15',
     });
   }
   if (provider === 'google-vertex') {

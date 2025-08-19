@@ -269,7 +269,7 @@ async function harvest(_name, commandOptions, _command) {
 
     const apiClient = await getCrowdin(options);
 
-    let strings = await getCrowdinStrings({
+    const strings = await getCrowdinStrings({
       spinner,
       options,
       apiClient,
