@@ -89,7 +89,7 @@ async function processSingleString({ agent, promptTemplate, workingDir, options,
     const context = await invokeAgent({ agent, prompt });
     return context ? { id: string.id, context } : null;
   } catch (err) {
-    console.log('Error during agent invocation', err);
+    console.log(`\nError during processing string: ${err.message}`);
     return null;
   }
 }
