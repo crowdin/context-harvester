@@ -8,7 +8,9 @@
   "main": "cli.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier -w .",
+    "format:check": "prettier -c ."
   },
   "keywords": [
     "crowin",
@@ -30,15 +32,16 @@
     "access": "public"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^1.1.1",
-    "@ai-sdk/azure": "^1.1.1",
-    "@ai-sdk/google-vertex": "^2.1.1",
-    "@ai-sdk/mistral": "^1.1.1",
-    "@ai-sdk/openai": "^1.1.1",
     "@crowdin/crowdin-api-client": "^1.33.1",
-    "ai": "^3.4.17",
+    "@langchain/anthropic": "^0.3.26",
+    "@langchain/core": "^0.3.68",
+    "@langchain/google-vertexai": "^0.2.16",
+    "@langchain/langgraph": "^0.4.3",
+    "@langchain/mistralai": "^0.2.1",
+    "@langchain/openai": "^0.6.7",
     "axios": "^1.7.2",
     "chalk": "^5.3.0",
+    "cli-progress": "^3.12.0",
     "cli-width": "^4.1.0",
     "commander": "^12.1.0",
     "csv": "^6.3.10",
@@ -50,9 +53,12 @@
     "minimatch": "^9.0.4",
     "ora": "^8.0.1",
     "table": "^6.8.2",
-    "tiktoken": "^1.0.17",
     "update-notifier": "^7.0.0",
+    "vscode-ripgrep": "^1.13.2",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
   },
   "license": "MIT"
 }
