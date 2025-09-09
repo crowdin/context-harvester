@@ -12,6 +12,10 @@
     "format": "prettier -w .",
     "format:check": "prettier -c ."
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crowdin/context-harvester.git"
+  },
   "keywords": [
     "crowin",
     "ai",
