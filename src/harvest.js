@@ -56,6 +56,18 @@ function formatTokens(count) {
   return String(n);
 }
 
+function formatDuration(ms) {
+  const totalSeconds = Math.round(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const parts = [];
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+  return parts.join(' ');
+}
+
 async function invokeAgent({ agent, prompt }) {
   const result = await agent.invoke(prompt, { recursionLimit: 100 });
   const lastMessage = result.messages[result.messages.length - 1];
@@ -182,7 +194,7 @@ function dryRunPrint(strings) {
   }
 
   if (data.length < 1) {
-    console.log(`\nNo context found for any strings.\n`);
+    console.log(`\nNo context found for any strings.`);
     return;
   }
 
@@ -191,7 +203,7 @@ function dryRunPrint(strings) {
   console.log(table(data, config));
 
   console.log(
-    `\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`,
+    `\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.`,
   );
 }
 
@@ -217,7 +229,7 @@ function writeCsv(options, strings) {
   });
 
   if (data.length < 1) {
-    console.log(`\nNo context found for any strings.\n`);
+    console.log(`\nNo context found for any strings.`);
     return;
   }
 
@@ -226,7 +238,7 @@ function writeCsv(options, strings) {
     const csv = parser.parse(data);
 
     fs.writeFileSync(csvFile, csv);
-    console.log(`\n${data.length} strings saved to ${chalk.green(csvFile)}\n`);
+    console.log(`\n${data.length} strings saved to ${chalk.green(csvFile)}`);
   } catch (err) {
     console.error(`Error writing CSV file: ${err}`);
   }
@@ -256,6 +268,7 @@ async function appendContext(strings, stringsContext) {
 
 // main function that orchestrates the context extraction process
 async function harvest(_name, commandOptions, _command) {
+  const startedAt = Date.now();
   try {
     const options = commandOptions.opts();
 
@@ -316,6 +329,9 @@ async function harvest(_name, commandOptions, _command) {
     }
   } catch (error) {
     console.error('error:', error);
+  } finally {
+    const elapsedMs = Date.now() - startedAt;
+    console.log(`\nTotal execution time: ${chalk.green(formatDuration(elapsedMs))}\n`);
   }
 }
 
