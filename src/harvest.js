@@ -320,12 +320,13 @@ async function harvest(_name, commandOptions, _command) {
       writeCsv(options, strings);
     } else if (options.output === 'crowdin') {
       spinner.start(`Updating Crowdin strings...`);
-      await uploadAiStringsToCrowdin({
+      const updatedCount = await uploadAiStringsToCrowdin({
         apiClient,
         project: options.project,
         strings,
       });
       spinner.succeed();
+      console.log(`\n${updatedCount} strings updated in Crowdin.`);
     }
   } catch (error) {
     console.error('error:', error);

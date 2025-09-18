@@ -27,7 +27,7 @@ async function upload(_name, commandOptions, _command) {
 
     spinner.start(`Uploading the reviewed context to Crowdin...`);
 
-    await uploadAiStringsToCrowdin({
+    const updatedCount = await uploadAiStringsToCrowdin({
       apiClient,
       project: options.project,
       strings,
@@ -36,6 +36,7 @@ async function upload(_name, commandOptions, _command) {
     spinner.succeed();
 
     console.log(`✨ The reviewed context has been uploaded to Crowdin project.`);
+    console.log(`\n${updatedCount} strings updated in Crowdin.`);
   } catch (e) {
     if (e.message.includes('stringNotExists')) {
       console.error("Some strings wasn't found in project. Please check CSV file and remove excessive strings.");

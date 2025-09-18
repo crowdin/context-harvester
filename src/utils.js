@@ -150,6 +150,7 @@ function removeAIContext(context) {
  * @param {number} param0.project
  * @param {Array<object>} param0.strings
  * @param {boolean} param0.uploadAll
+ * @returns {Promise<number>}
  */
 async function uploadAiStringsToCrowdin({ apiClient, project, strings, uploadAll }) {
   const stringsWithAiContext = strings.filter(string => string?.aiContext?.length > 0 || uploadAll);
@@ -164,6 +165,8 @@ async function uploadAiStringsToCrowdin({ apiClient, project, strings, uploadAll
   }
 
   await apiClient.sourceStringsApi.stringBatchOperations(project, contextUpdateBatchRequest);
+
+  return stringsWithAiContext.length;
 }
 
 /**
