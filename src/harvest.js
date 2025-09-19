@@ -19,6 +19,8 @@ import {
   getCrowdinStrings,
   getPrompt,
   stringifyString,
+  formatTokens,
+  formatDuration,
   getChatModel,
 } from './utils.js';
 import { SYSTEM_PROMPT } from './agent/prompts/system.js';
@@ -52,12 +54,13 @@ const spinner = ora();
 async function invokeAgent({ agent, prompt }) {
   const result = await agent.invoke(prompt, { recursionLimit: 100 });
   const lastMessage = result.messages[result.messages.length - 1];
+  const tokensUsed = result.messages.reduce((totalTokens, message) => totalTokens + (message.usage_metadata?.total_tokens ?? 0), 0);
 
   if (!lastMessage || !isToolMessage(lastMessage) || lastMessage.name !== 'return_context' || lastMessage.content.length === 0) {
-    return null;
+    return { context: null, tokensUsed };
   }
 
-  return lastMessage.content;
+  return { context: lastMessage.content, tokensUsed };
 }
 
 function createAgentAndPrompt(options) {
@@ -72,7 +75,7 @@ function createAgentAndPrompt(options) {
 
 function createProgressBar() {
   const bar = new cliProgress.SingleBar(
-    { format: 'Processed strings {value}/{total} | {bar} {percentage}%' },
+    { format: 'Processed strings {value}/{total} | {bar} {percentage}% | {tokens} tokens' },
     cliProgress.Presets.shades_classic,
   );
   return bar;
@@ -86,11 +89,11 @@ async function processSingleString({ agent, promptTemplate, workingDir, options,
       date: new Date().toISOString(),
       string: stringifyString({ string }),
     });
-    const context = await invokeAgent({ agent, prompt });
-    return context ? { id: string.id, context } : null;
+    const { context, tokensUsed } = await invokeAgent({ agent, prompt });
+    return { id: string.id, context, tokensUsed };
   } catch (err) {
     console.log(`\nError during processing string: ${err.message}`);
-    return null;
+    return { id: string.id, context: null, tokensUsed: 0 };
   }
 }
 
@@ -109,20 +112,22 @@ async function runConcurrentWorkers({ items, concurrency, worker }) {
 async function extractContexts({ strings, options }) {
   const concurrency = Number(options.concurrency);
   const workingDir = process.cwd();
+  let totalTokensUsed = 0;
+  const bar = createProgressBar();
   const { agent, promptTemplate } = createAgentAndPrompt(options);
 
   const results = [];
   const total = strings.length;
-  const bar = createProgressBar();
-  bar.start(total, 0);
+  bar.start(total, 0, { tokens: formatTokens(0) });
 
   await runConcurrentWorkers({
     items: strings,
     concurrency,
     worker: async s => {
-      const contextEntry = await processSingleString({ agent, promptTemplate, workingDir, options, string: s });
-      if (contextEntry) results.push(contextEntry);
-      bar.increment();
+      const { id, context, tokensUsed } = await processSingleString({ agent, promptTemplate, workingDir, options, string: s });
+      totalTokensUsed += tokensUsed || 0;
+      if (context) results.push({ id, context });
+      bar.increment(1, { tokens: formatTokens(totalTokensUsed) });
     },
   });
 
@@ -172,7 +177,7 @@ function dryRunPrint(strings) {
   }
 
   if (data.length < 1) {
-    console.log(`\nNo context found for any strings.\n`);
+    console.log(`\nNo context found for any strings.`);
     return;
   }
 
@@ -181,7 +186,7 @@ function dryRunPrint(strings) {
   console.log(table(data, config));
 
   console.log(
-    `\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.\n`,
+    `\n${stringsWithAiContext.length} strings would be updated. Please be aware that an LLM model may return different results for the same input next time you run the tool.`,
   );
 }
 
@@ -207,7 +212,7 @@ function writeCsv(options, strings) {
   });
 
   if (data.length < 1) {
-    console.log(`\nNo context found for any strings.\n`);
+    console.log(`\nNo context found for any strings.`);
     return;
   }
 
@@ -216,7 +221,7 @@ function writeCsv(options, strings) {
     const csv = parser.parse(data);
 
     fs.writeFileSync(csvFile, csv);
-    console.log(`\n${data.length} strings saved to ${chalk.green(csvFile)}\n`);
+    console.log(`\n${data.length} strings saved to ${chalk.green(csvFile)}`);
   } catch (err) {
     console.error(`Error writing CSV file: ${err}`);
   }
@@ -246,6 +251,7 @@ async function appendContext(strings, stringsContext) {
 
 // main function that orchestrates the context extraction process
 async function harvest(_name, commandOptions, _command) {
+  const startedAt = Date.now();
   try {
     const options = commandOptions.opts();
 
@@ -297,15 +303,19 @@ async function harvest(_name, commandOptions, _command) {
       writeCsv(options, strings);
     } else if (options.output === 'crowdin') {
       spinner.start(`Updating Crowdin strings...`);
-      await uploadAiStringsToCrowdin({
+      const updatedCount = await uploadAiStringsToCrowdin({
         apiClient,
         project: options.project,
         strings,
       });
       spinner.succeed();
+      console.log(`\n${updatedCount} strings updated in Crowdin.`);
     }
   } catch (error) {
     console.error('error:', error);
+  } finally {
+    const elapsedMs = Date.now() - startedAt;
+    console.log(`\nTotal execution time: ${chalk.green(formatDuration(elapsedMs))}\n`);
   }
 }
 

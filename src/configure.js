@@ -1,12 +1,13 @@
 //@ts-check
 import inquirer from 'inquirer';
-import { getCrowdin, getUserId } from './utils.js';
+import { getCrowdin, getUserId, normalizeEnterpriseUrl } from './utils.js';
 import chalk from 'chalk';
 import axios from 'axios';
 import { GoogleAuth } from 'google-auth-library';
 
 async function configureCli(_name, commandOptions, _command) {
   const options = commandOptions.opts();
+  let crowdinBaseUrl = normalizeEnterpriseUrl(options.url);
 
   const questions = [
     {
@@ -24,15 +25,16 @@ async function configureCli(_name, commandOptions, _command) {
       name: 'url',
       message: 'Crowdin organization url (for enterprise https://<org-name>.api.crowdin.com):',
       when: answers => answers.crowdin === 'enterprise' && !options.url,
+      filter: value => ((crowdinBaseUrl = normalizeEnterpriseUrl(value)), crowdinBaseUrl),
     },
     {
       // only ask for token if not provided as an option
       type: 'input',
       name: 'token',
       message: 'Crowdin Personal API token (with Project, AI scopes):',
-      validate: async (value, answers) => {
+      validate: async value => {
         try {
-          const apiClient = await getCrowdin({ token: value, url: answers.url });
+          const apiClient = await getCrowdin({ token: value, url: crowdinBaseUrl });
           await apiClient.projectsGroupsApi.withFetchAll(1).listProjects({ hasManagerAccess: 1 }); // get one project to test the token
 
           return true;
@@ -47,7 +49,7 @@ async function configureCli(_name, commandOptions, _command) {
       name: 'project',
       message: 'Crowdin project:',
       choices: async answers => {
-        const apiClient = await getCrowdin({ token: answers.token || options.token, url: answers.url || options.url });
+        const apiClient = await getCrowdin({ token: answers.token || options.token, url: crowdinBaseUrl });
 
         if (apiClient.projectsGroupsApi.organization) {
           return (await apiClient.projectsGroupsApi.withFetchAll().listProjects()).data

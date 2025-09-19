@@ -8,6 +8,7 @@ import { ChatOpenAI, AzureChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatMistralAI } from '@langchain/mistralai';
 import { ChatVertexAI } from '@langchain/google-vertexai';
+import * as chrono from 'chrono-node';
 
 const AI_CONTEXT_SECTION_START = '✨ AI Context';
 const AI_CONTEXT_SECTION_END = '✨ 🔚';
@@ -32,6 +33,38 @@ function normalizeUrl(url) {
     return `${url}api/v2`;
   } else {
     return `${url}/api/v2`;
+  }
+}
+
+/**
+ * Normalize enterprise base URL: accept either full https://<org>.api.crowdin.com or just <org>
+ * @param {string} value
+ * @returns {string}
+ */
+function normalizeEnterpriseUrl(value) {
+  if (!value) return value;
+  const orgNamePattern = /^[a-z0-9\-]+$/i;
+  if (orgNamePattern.test(value)) {
+    return `https://${value}.api.crowdin.com`;
+  }
+  return value;
+}
+
+/**
+ * Apply environment variable aliases: if canonical var is not set, use the first non-empty alias.
+ * @param {Record<string, string[]>} aliasesMap
+ */
+function applyEnvAliases(aliasesMap) {
+  for (const [canonicalName, aliases] of Object.entries(aliasesMap)) {
+    const current = process.env[canonicalName];
+    if (current !== undefined && String(current).length > 0) continue;
+    for (const alias of aliases) {
+      const aliasValue = process.env[alias];
+      if (aliasValue !== undefined && String(aliasValue).length > 0) {
+        process.env[canonicalName] = aliasValue;
+        break;
+      }
+    }
   }
 }
 
@@ -64,8 +97,9 @@ async function getCrowdinFiles({ apiClient, project, filesPattern }) {
  * @param {boolean} param0.isStringsProject
  * @param {object} param0.container
  * @param {string} [param0.croql]
+ * @param {string} [param0.since]
  */
-async function fetchCrowdinStrings({ apiClient, project, isStringsProject, container, croql }) {
+async function fetchCrowdinStrings({ apiClient, project, isStringsProject, container, croql, since }) {
   const filter = {};
 
   if (isStringsProject) {
@@ -78,9 +112,19 @@ async function fetchCrowdinStrings({ apiClient, project, isStringsProject, conta
     }
   }
 
-  const crowdinStrings = (await apiClient.sourceStringsApi.withFetchAll().listProjectStrings(project, filter)).data.map(
+  let crowdinStrings = (await apiClient.sourceStringsApi.withFetchAll().listProjectStrings(project, filter)).data.map(
     string => string.data,
   );
+
+  const sinceDate = since ? chrono.parseDate(String(since).trim()) : null;
+
+  if (sinceDate) {
+    crowdinStrings = crowdinStrings.filter(str => {
+      const createdTs = str.createdAt ? Date.parse(str.createdAt) : NaN;
+      if (isNaN(createdTs)) return false;
+      return createdTs >= sinceDate.getTime();
+    });
+  }
 
   const strings = crowdinStrings.map(string => {
     return {
@@ -150,6 +194,7 @@ function removeAIContext(context) {
  * @param {number} param0.project
  * @param {Array<object>} param0.strings
  * @param {boolean} param0.uploadAll
+ * @returns {Promise<number>}
  */
 async function uploadAiStringsToCrowdin({ apiClient, project, strings, uploadAll }) {
   const stringsWithAiContext = strings.filter(string => string?.aiContext?.length > 0 || uploadAll);
@@ -164,6 +209,8 @@ async function uploadAiStringsToCrowdin({ apiClient, project, strings, uploadAll
   }
 
   await apiClient.sourceStringsApi.stringBatchOperations(project, contextUpdateBatchRequest);
+
+  return stringsWithAiContext.length;
 }
 
 /**
@@ -318,6 +365,7 @@ async function getCrowdinStrings({ options, apiClient, spinner }) {
         isStringsProject,
         container,
         croql: options.croql,
+        since: options.since,
       });
       strings.push(...result.crowdinStrings);
       spinner.succeed();
@@ -427,6 +475,25 @@ function getChatModel(options) {
   throw new Error(`Unsupported ai provider: ${provider}. Supported providers: openai, azure, anthropic, mistral, google-vertex`);
 }
 
+function formatTokens(count) {
+  const n = Number(count) || 0;
+  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(2) + 'k';
+  return String(n);
+}
+
+function formatDuration(ms) {
+  const totalSeconds = Math.round(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const parts = [];
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+  return parts.join(' ');
+}
+
 export {
   stringifyString,
   getPrompt,
@@ -441,4 +508,8 @@ export {
   AI_CONTEXT_SECTION_END,
   AI_CONTEXT_SECTION_START,
   getChatModel,
+  normalizeEnterpriseUrl,
+  applyEnvAliases,
+  formatTokens,
+  formatDuration,
 };

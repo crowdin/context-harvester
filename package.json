@@ -45,6 +45,7 @@
     "@langchain/openai": "^0.6.7",
     "axios": "^1.7.2",
     "chalk": "^5.3.0",
+    "chrono-node": "^2.8.4",
     "cli-progress": "^3.12.0",
     "cli-width": "^4.1.0",
     "commander": "^12.1.0",
