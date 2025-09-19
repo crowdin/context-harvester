@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command, Option, InvalidArgumentError } from 'commander';
+import * as chrono from 'chrono-node';
 import configureCli from './src/configure.js';
 import harvest from './src/harvest.js';
 import reset from './src/reset.js';
@@ -229,6 +230,21 @@ program
     ),
   )
   .addOption(
+    new Option(
+      '-s, --since <dateOrDuration>',
+      'filter strings added since a date or duration (e.g., "24 hours ago", "7 days ago", "2025-09-01T12:00:00")',
+    ).argParser(value => {
+      const trimmed = String(value).trim();
+      const parsed = chrono.parseDate(trimmed);
+      if (!(parsed instanceof Date) || isNaN(parsed.getTime())) {
+        throw new InvalidArgumentError(
+          'Invalid value for --since. Try natural language like "24 hours ago" or an explicit date like "2025-09-01T12:00:00".',
+        );
+      }
+      return value;
+    }),
+  )
+  .addOption(
     new Option('-j, --concurrency <n>', 'concurrency level for per-string extraction').default(10).argParser(value => {
       const parsed = Number(value);
       if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
@@ -248,6 +264,8 @@ Examples:
     $ crowdin-context-harvester harvest --project=462 --crowdinFiles="strings.xml"
     $ crowdin-context-harvester harvest --project=462 --croql='not (context contains "✨ AI Context")'
     $ crowdin-context-harvester harvest --project=462 --croql="added between '2023-12-06 13:44:14' and '2023-12-07 13:44:14'" --output=terminal
+    $ crowdin-context-harvester harvest --project=462 --since="24 hours ago" --output=terminal
+    $ crowdin-context-harvester harvest --project=462 --since="2025-09-01T12:00:00" --output=terminal
     $ crowdin-context-harvester harvest --project=462 --ai="openai" --openAiKey="sk-xxx" --openAiBaseUrl="http://localhost:8000/v1"
     `,
   )

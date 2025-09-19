@@ -8,6 +8,7 @@ import { ChatOpenAI, AzureChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatMistralAI } from '@langchain/mistralai';
 import { ChatVertexAI } from '@langchain/google-vertexai';
+import * as chrono from 'chrono-node';
 
 const AI_CONTEXT_SECTION_START = '✨ AI Context';
 const AI_CONTEXT_SECTION_END = '✨ 🔚';
@@ -64,8 +65,9 @@ async function getCrowdinFiles({ apiClient, project, filesPattern }) {
  * @param {boolean} param0.isStringsProject
  * @param {object} param0.container
  * @param {string} [param0.croql]
+ * @param {string} [param0.since]
  */
-async function fetchCrowdinStrings({ apiClient, project, isStringsProject, container, croql }) {
+async function fetchCrowdinStrings({ apiClient, project, isStringsProject, container, croql, since }) {
   const filter = {};
 
   if (isStringsProject) {
@@ -78,9 +80,19 @@ async function fetchCrowdinStrings({ apiClient, project, isStringsProject, conta
     }
   }
 
-  const crowdinStrings = (await apiClient.sourceStringsApi.withFetchAll().listProjectStrings(project, filter)).data.map(
+  let crowdinStrings = (await apiClient.sourceStringsApi.withFetchAll().listProjectStrings(project, filter)).data.map(
     string => string.data,
   );
+
+  const sinceDate = since ? chrono.parseDate(String(since).trim()) : null;
+
+  if (sinceDate) {
+    crowdinStrings = crowdinStrings.filter(str => {
+      const createdTs = str.createdAt ? Date.parse(str.createdAt) : NaN;
+      if (isNaN(createdTs)) return false;
+      return createdTs >= sinceDate.getTime();
+    });
+  }
 
   const strings = crowdinStrings.map(string => {
     return {
@@ -321,6 +333,7 @@ async function getCrowdinStrings({ options, apiClient, spinner }) {
         isStringsProject,
         container,
         croql: options.croql,
+        since: options.since,
       });
       strings.push(...result.crowdinStrings);
       spinner.succeed();
