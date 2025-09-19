@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import updateNotifier from 'update-notifier';
+import { applyEnvAliases } from './src/utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +37,15 @@ const azureApiKeyEnvName = 'AZURE_API_KEY';
 const azureDeploymentNameEnvName = 'AZURE_DEPLOYMENT_NAME';
 const anthropicApiKeyEnvName = 'ANTHROPIC_API_KEY';
 const mistralApiKeyEnvName = 'MISTRAL_API_KEY';
+
+const envAliases = {
+  [openApiEnvName]: ['OPENAI_API_KEY'],
+  [azureResourceNameEnvName]: ['AZURE_OPENAI_API_INSTANCE_NAME'],
+  [azureApiKeyEnvName]: ['AZURE_OPENAI_API_KEY'],
+  [azureDeploymentNameEnvName]: ['AZURE_OPENAI_API_DEPLOYMENT_NAME'],
+};
+
+applyEnvAliases(envAliases);
 
 program.version(packageJson.version).name('crowdin-context-harvester')
   .description(`CLI tool for adding contextual information for Crowdin strings using AI. 

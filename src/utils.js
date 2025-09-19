@@ -37,6 +37,24 @@ function normalizeUrl(url) {
 }
 
 /**
+ * Apply environment variable aliases: if canonical var is not set, use the first non-empty alias.
+ * @param {Record<string, string[]>} aliasesMap
+ */
+function applyEnvAliases(aliasesMap) {
+  for (const [canonicalName, aliases] of Object.entries(aliasesMap)) {
+    const current = process.env[canonicalName];
+    if (current !== undefined && String(current).length > 0) continue;
+    for (const alias of aliases) {
+      const aliasValue = process.env[alias];
+      if (aliasValue !== undefined && String(aliasValue).length > 0) {
+        process.env[canonicalName] = aliasValue;
+        break;
+      }
+    }
+  }
+}
+
+/**
  * @param {object} param0
  * @param {object} param0.apiClient
  * @param {number} param0.project
@@ -457,4 +475,5 @@ export {
   AI_CONTEXT_SECTION_END,
   AI_CONTEXT_SECTION_START,
   getChatModel,
+  applyEnvAliases,
 };
