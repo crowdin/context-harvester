@@ -37,6 +37,20 @@ function normalizeUrl(url) {
 }
 
 /**
+ * Normalize enterprise base URL: accept either full https://<org>.api.crowdin.com or just <org>
+ * @param {string} value
+ * @returns {string}
+ */
+function normalizeEnterpriseUrl(value) {
+  if (!value) return value;
+  const orgNamePattern = /^[a-z0-9\-]+$/i;
+  if (orgNamePattern.test(value)) {
+    return `https://${value}.api.crowdin.com`;
+  }
+  return value;
+}
+
+/**
  * Apply environment variable aliases: if canonical var is not set, use the first non-empty alias.
  * @param {Record<string, string[]>} aliasesMap
  */
@@ -475,5 +489,6 @@ export {
   AI_CONTEXT_SECTION_END,
   AI_CONTEXT_SECTION_START,
   getChatModel,
+  normalizeEnterpriseUrl,
   applyEnvAliases,
 };
