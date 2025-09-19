@@ -105,6 +105,27 @@ You can now review the extracted context and save the CSV. After reviewing, you 
 crowdin-context-harvester upload -p <project-id> --csvFile=<csv-file-name>
 ```
 
+### Generate Project Description
+
+You can generate a concise project description based on your local repository and either print it to the terminal or update the Crowdin project description directly:
+
+```sh
+crowdin-context-harvester describe \
+    --token="<your-crowdin-token>" \
+    --url="https://acme.api.crowdin.com" \
+    --project=<project-id> \
+    --ai="openai" \
+    --openAiKey="<your-openai-token>" \
+    --model="gpt-4o" \
+    --output=terminal
+```
+
+To write the generated description to Crowdin:
+
+```sh
+crowdin-context-harvester describe -p <project-id> --output=crowdin
+```
+
 ### Custom Prompt
 
 Use a custom prompt with:

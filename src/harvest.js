@@ -19,6 +19,8 @@ import {
   getCrowdinStrings,
   getPrompt,
   stringifyString,
+  formatTokens,
+  formatDuration,
   getChatModel,
 } from './utils.js';
 import { SYSTEM_PROMPT } from './agent/prompts/system.js';
@@ -48,25 +50,6 @@ const returnContextTool = tool(
 );
 
 const spinner = ora();
-
-function formatTokens(count) {
-  const n = Number(count) || 0;
-  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(2) + 'k';
-  return String(n);
-}
-
-function formatDuration(ms) {
-  const totalSeconds = Math.round(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const parts = [];
-  if (hours) parts.push(`${hours}h`);
-  if (minutes) parts.push(`${minutes}m`);
-  parts.push(`${seconds}s`);
-  return parts.join(' ');
-}
 
 async function invokeAgent({ agent, prompt }) {
   const result = await agent.invoke(prompt, { recursionLimit: 100 });

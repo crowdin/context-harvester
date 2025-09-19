@@ -4,6 +4,7 @@ import { Command, Option, InvalidArgumentError } from 'commander';
 import * as chrono from 'chrono-node';
 import configureCli from './src/configure.js';
 import harvest from './src/harvest.js';
+import describeProject from './src/describe.js';
 import reset from './src/reset.js';
 import upload from './src/upload.js';
 import chalk from 'chalk';
@@ -280,6 +281,86 @@ Examples:
     `,
   )
   .action(harvest);
+
+program
+  .command('describe')
+  .description('generate project description by analyzing local repository with AI')
+  .addOption(
+    new Option('-t, --token <token>', 'Crowdin Personal API token (with Project and AI scopes granted).')
+      .makeOptionMandatory()
+      .env(tokenEnvName),
+  )
+  .addOption(new Option('-u, --url <base-url>', 'Crowdin API url (for enterprise https://<org-name>.api.crowdin.com)').env(baseUrlEnvName))
+  .addOption(new Option('-p, --project <projectId>', 'Crowdin project ID (e.g., 123456)').makeOptionMandatory().env(projectEnvName))
+  .addOption(
+    new Option('-a, --ai <provider>', 'AI provider ("openai", "google-vertex", "azure", "anthropic" or "mistral").')
+      .default('openai')
+      .makeOptionMandatory(),
+  )
+  .addOption(new Option('-k, --openAiKey <key>', 'OpenAI API key (required for ai=openai).').env(openApiEnvName))
+  .addOption(
+    new Option(
+      '-ob, --openAiBaseUrl <base-url>',
+      'OpenAI-compatible API base URL (e.g., http://localhost:8000/v1). Optional for ai=openai.',
+    ).env(openAiBaseUrlEnvName),
+  )
+  .addOption(
+    new Option('-gvp, --googleVertexProject <google-vertext-project-id>', 'Google Cloud Project ID (required for ai=google-vertex).').env(
+      googleVertexProjectEnvName,
+    ),
+  )
+  .addOption(
+    new Option(
+      '-gvl, --googleVertexLocation <google-vertext-location>',
+      'Google Cloud Project location (required for ai=google-vertex).',
+    ).env(googleVertexLocationEnvName),
+  )
+  .addOption(
+    new Option(
+      '-gvce, --googleVertexClientEmail <google-vertext-client-email>',
+      'Google Cloud service account client email (required for ai=google-vertex).',
+    ).env(googleVertexClientEmailEnvName),
+  )
+  .addOption(
+    new Option(
+      '-gvpk, --googleVertexPrivateKey <google-vertext-private-key>',
+      'Google Cloud service account private key (required for ai=google-vertex).',
+    ).env(googleVertexPrivateKeyEnvName),
+  )
+  .addOption(
+    new Option('-azr, --azureResourceName <azure-resource-name>', 'MS Azure OpenAI resource name (required for ai=azure).').env(
+      azureResourceNameEnvName,
+    ),
+  )
+  .addOption(new Option('-azk, --azureApiKey <azure-api-key>', 'MS Azure OpenAI API key (required for ai=azure).').env(azureApiKeyEnvName))
+  .addOption(
+    new Option('-azd, --azureDeploymentName <azure-resource-name>', 'MS Azure OpenAI deployment name (required for ai=azure).').env(
+      azureDeploymentNameEnvName,
+    ),
+  )
+  .addOption(
+    new Option('-ank, --anthropicApiKey <anthropic-api-key>', 'Anthropic API key (required for ai=anthropic).').env(anthropicApiKeyEnvName),
+  )
+  .addOption(new Option('-mk, --mistralApiKey <mistral-api-key>', 'Mistral API key (required for ai=mistral).').env(mistralApiKeyEnvName))
+  .addOption(new Option('-m, --model <model>', 'AI model. Should accept large context and support tool calls.').default('gpt-5'))
+  .addOption(new Option('-cp, --promptFile <path>', 'path to a file containing a custom prompt. Use "-" to read from STDIN. (optional)'))
+  .addOption(
+    new Option('-w, --output <terminal | crowdin>', 'output destination for project description.')
+      .default('terminal')
+      .makeOptionMandatory(),
+  )
+  .addHelpText(
+    'after',
+    `
+It's recommended to configure your Crowdin and AI provider credentials in the environment variables before running the command.
+
+Examples:
+    $ crowdin-context-harvester describe --project=462
+    $ crowdin-context-harvester describe --project=462 --output=crowdin
+    $ crowdin-context-harvester describe --project=462 --ai="openai" --openAiKey="sk-xxx" --openAiBaseUrl="http://localhost:8000/v1"
+    `,
+  )
+  .action(describeProject);
 
 program
   .command('upload')
