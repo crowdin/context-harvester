@@ -178,6 +178,101 @@ To remove previously added AI context, use the reset command:
 crowdin-context-harvester reset
 ```
 
+## CI / Automation
+
+You can run the Context Harvester in your CI to regularly add or review AI context for strings.
+
+### Environment variables required in CI
+
+- `CROWDIN_PERSONAL_TOKEN` – Crowdin Personal API token with Project and AI scopes
+- `CROWDIN_PROJECT_ID` – Crowdin project ID
+- `CROWDIN_BASE_URL` – only for Crowdin Enterprise, like `https://<org-name>.api.crowdin.com`
+- AI provider credentials (choose one):
+  - OpenAI: `OPENAI_KEY` (+ optional `OPENAI_BASE_URL`)
+  - Google Vertex: `GOOGLE_VERTEX_PROJECT`, `GOOGLE_VERTEX_LOCATION`, `GOOGLE_VERTEX_CLIENT_EMAIL`, `GOOGLE_VERTEX_PRIVATE_KEY`
+  - Azure OpenAI: `AZURE_RESOURCE_NAME`, `AZURE_API_KEY`, `AZURE_DEPLOYMENT_NAME`
+  - Anthropic: `ANTHROPIC_API_KEY`
+  - Mistral: `MISTRAL_API_KEY`
+
+### GitHub Actions
+
+This workflow runs on push to `main`, on a schedule, and manually. It writes context directly to Crowdin using `--output crowdin`.
+
+```yaml
+name: Crowdin Context Harvester
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # daily at 03:00 UTC
+  push:
+    branches: [ main ]
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Harvest and write AI context to Crowdin
+        env:
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+          CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
+          # For Enterprise:
+          CROWDIN_BASE_URL: ${{ secrets.CROWDIN_BASE_URL }}
+          # AI provider (example: OpenAI)
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          npx --yes crowdin-context-harvester@latest harvest \
+            --project="$CROWDIN_PROJECT_ID" \
+            --ai="openai" \
+            --model="gpt-5" \
+            --croql='not (context contains "✨ AI Context")' \
+            --output="crowdin" \
+            --concurrency=10
+```
+
+### GitLab CI/CD
+
+```yaml
+stages: [harvest]
+
+harvest_context:
+  image: node:20-alpine
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  variables:
+    CROWDIN_PERSONAL_TOKEN: "$CROWDIN_PERSONAL_TOKEN"
+    CROWDIN_PROJECT_ID: "$CROWDIN_PROJECT_ID"
+    # For Enterprise
+    CROWDIN_BASE_URL: "$CROWDIN_BASE_URL"
+    # AI provider (example: OpenAI)
+    OPENAI_KEY: "$OPENAI_API_KEY"
+  script:
+    - npx --yes crowdin-context-harvester@latest harvest \
+        --project="$CROWDIN_PROJECT_ID" \
+        --ai="openai" \
+        --model="gpt-5" \
+        --croql='not (context contains "✨ AI Context")' \
+        --output="crowdin" \
+        --concurrency=10
+```
+
+### Tips for CI runs
+
+- Use `--croql` to limit scope, e.g. only strings without AI context or within a date range. Examples:
+  - `--croql='not (context contains "✨ AI Context")'`
+  - `--croql="added between '2023-12-06 13:44:14' and '2023-12-07 13:44:14'"`
+- Or use `--since "24 hours ago"` to only process recently added strings.
+- Set `--output crowdin` to write directly to your Crowdin project, or `--output csv` to review first.
+- Adjust `--concurrency` to control API usage; default is `10`.
+- For monorepos, run the job from the appropriate subdirectory (set CI working directory) so local code search runs in the right folder.
+
 ## About Crowdin
 
 Crowdin is a platform that helps you manage and translate content into different languages. Integrate Crowdin with your repo, CMS, or other systems. Source content is always up to date for your translators, and translated content is returned automatically.
