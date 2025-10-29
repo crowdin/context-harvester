@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import cliWidth from 'cli-width';
 import fs from 'fs';
 import path from 'path';
-import { Parser } from 'json2csv';
+import { Parser } from '@json2csv/plainjs';
 import ora from 'ora';
 import { table } from 'table';
 import { tool } from '@langchain/core/tools';
