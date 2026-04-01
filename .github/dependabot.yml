@@ -7,7 +7,9 @@ updates:
       interval: "monthly"
     ignore:
       - dependency-name: "*"
-        update-types: [ "version-update:semver-major" ]
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-patch"
     groups:
       ai-sdk-dependencies:
         patterns:
