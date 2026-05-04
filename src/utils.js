@@ -102,14 +102,12 @@ async function getCrowdinFiles({ apiClient, project, filesPattern }) {
 async function fetchCrowdinStrings({ apiClient, project, isStringsProject, container, croql, since }) {
   const filter = {};
 
-  if (isStringsProject) {
+  if (croql) {
+    filter.croql = croql;
+  } else if (isStringsProject) {
     filter.branchId = container.id;
   } else {
-    if (croql) {
-      filter.croql = croql;
-    } else {
-      filter.fileId = container.id;
-    }
+    filter.fileId = container.id;
   }
 
   let crowdinStrings = (await apiClient.sourceStringsApi.withFetchAll().listProjectStrings(project, filter)).data.map(
@@ -326,24 +324,23 @@ async function getCrowdinStrings({ options, apiClient, spinner }) {
   let containers = []; // we call it containers because it can be either files in a regular Crowdin project or branches in a Strings project
 
   try {
-    if (isStringsProject) {
+    if (options.croql) {
+      // when croql is set, we use a single dummy container so the filter is applied project-wide,
+      // regardless of project type (files-based or string-based)
+      containers = [
+        {
+          id: 0,
+          path: 'croql',
+        },
+      ];
+    } else if (isStringsProject) {
       containers = (await apiClient.sourceFilesApi.withFetchAll().listProjectBranches(options.project)).data.map(branch => branch.data);
     } else {
-      if (options.croql) {
-        // because croql filter can't be used with files filter, we create this dummy container as there would no files but we would have strings
-        containers = [
-          {
-            id: 0,
-            path: 'croql',
-          },
-        ];
-      } else {
-        containers = await getCrowdinFiles({
-          apiClient,
-          project: options.project,
-          filesPattern: options.crowdinFiles,
-        });
-      }
+      containers = await getCrowdinFiles({
+        apiClient,
+        project: options.project,
+        filesPattern: options.crowdinFiles,
+      });
     }
   } catch (error) {
     spinner.fail();
