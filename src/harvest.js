@@ -117,6 +117,7 @@ async function extractContexts({ strings, options }) {
   const { agent, promptTemplate } = createAgentAndPrompt(options);
 
   const results = [];
+  let withoutContextCount = 0;
   const total = strings.length;
   bar.start(total, 0, { tokens: formatTokens(0) });
 
@@ -126,13 +127,17 @@ async function extractContexts({ strings, options }) {
     worker: async s => {
       const { id, context, tokensUsed } = await processSingleString({ agent, promptTemplate, workingDir, options, string: s });
       totalTokensUsed += tokensUsed || 0;
-      if (context) results.push({ id, context });
+      if (context) {
+        results.push({ id, context });
+      } else {
+        withoutContextCount++;
+      }
       bar.increment(1, { tokens: formatTokens(totalTokensUsed) });
     },
   });
 
   bar.stop();
-  return { contexts: results };
+  return { contexts: results, withoutContextCount };
 }
 
 /**
@@ -273,6 +278,10 @@ async function harvest(_name, commandOptions, _command) {
 
     validateAiProviderFields(options);
 
+    if (options.croql && options.crowdinFiles && options.crowdinFiles !== '**/*.*') {
+      console.log(chalk.yellow(`Note: --crowdinFiles is ignored when --croql is set; CROQL selects strings project-wide.`));
+    }
+
     const apiClient = await getCrowdin(options);
 
     const strings = await getCrowdinStrings({
@@ -296,6 +305,12 @@ async function harvest(_name, commandOptions, _command) {
       console.log('\nError during context appending');
       console.error(error);
     }
+
+    const withContextCount = stringsContext?.contexts?.length ?? 0;
+    const withoutContextCount = stringsContext?.withoutContextCount ?? 0;
+    console.log(
+      `\nFetched ${chalk.green(strings.length)} strings: ${chalk.green(withContextCount)} returned AI context, ${chalk.yellow(withoutContextCount)} returned no context.`,
+    );
 
     if (options.output === 'terminal') {
       dryRunPrint(strings);
