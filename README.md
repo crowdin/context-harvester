@@ -1,5 +1,8 @@
 # Crowdin Context Harvester CLI
 
+> [!WARNING]
+> **This project is deprecated and no longer maintained.** The recommended approach for extracting string context is now to use AI agents. Read more in the [Automate i18n Context with AI Agents](https://crowdin.com/blog/automate-i18n-context-with-ai-agents) blog post.
+
 This tool is especially useful when translating UI projects with Crowdin. The Context Harvester CLI is designed to simplify the process of extracting context for Crowdin strings from your code. Using Large Language Models (LLMs), it automatically analyzes your project code to find out how each key is used. This information is extremely useful for the human linguists or AI that will be translating your project keys, and is likely to improve the quality of the translation.
 
 <div align="center">
